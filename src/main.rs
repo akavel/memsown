@@ -12,9 +12,11 @@ fn main() {
     // FIXME: Stage 1: add not-yet-known files into DB
     // FIXME:  foreach *.{jpg,jpeg} in c:\fotki\...:
     for entry in WalkDir::new(r"c:\fotki") {
-        // FIXME: if path not "*.{jpg,jpeg}" then continue
         // TODO[LATER]: use `?` instead of .unwrap() and ret. some err from main() or print error info
-        println!("{}", entry.unwrap().path().display());
+        let f = entry.unwrap();
+        if !f.file_type().is_file() { continue; }
+        // FIXME: if path not "*.{jpg,jpeg}" then continue
+        println!("{}", f.path().display());
     // FIXME:    - calc sha1 hash
     // FIXME:    - extract exif date
     // FIXME:    - extract exif orientation
