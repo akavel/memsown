@@ -2,6 +2,7 @@ use std::fs::{read, File};
 use std::io::Cursor;
 use std::path::Path;
 
+use chrono::naive::{NaiveDate, NaiveDateTime};
 use exif::{Exif, Reader};
 use globwalk::GlobWalkerBuilder;
 use image::io::Reader as ImageReader;
@@ -46,7 +47,11 @@ fn main() {
 
         // Extract some info from JPEG's Exif metadata
         let exif = Reader::new().read_from_container(&mut Cursor::new(&buf)).unwrap();
-        let date = exif_date(&exif);
+        // TODO[LATER]: extract date from other Exif fields or filename
+        let date = exif_date(&exif).unwrap_or(::exif::DateTime{
+            year: 0, month: 0, day: 0, hour: 0, minute: 0, second: 0,
+            nanosecond: None, offset: None,
+        });
         let orient = exif_orientation(&exif);
         // TODO: test exif deorienting with cases from: https://github.com/recurser/exif-orientation-examples
         // (see also: https://www.daveperrett.com/articles/2012/07/28/exif-orientation-handling-is-a-ghetto)
@@ -59,7 +64,13 @@ fn main() {
         let thumb = img.resize(200, 200, FilterType::CatmullRom);
         thumb.save("tmp.jpg").unwrap();
 
-        println!("{} {} {:?} {:?}", hash, path.display(), date.map(|d| d.to_string()), orient);
+        let info = FileInfo{
+            hash: hash.clone(),
+            date: NaiveDate::from_ymd(date.year.into(), date.month.into(), date.day.into())
+                .and_hms(date.hour.into(), date.minute.into(), date.second.into()),
+        };
+
+        println!("{} {} {:?} {:?}", &hash, path.display(), date.to_string(), orient);
     }
 
     // FIXME: Stage 2: scan all files once more and refresh them in DB
@@ -109,6 +120,14 @@ fn db_exists(db: &DbConnection, marker: &str, relative: &str) -> bool {
         params![marker, relative],
         |row| row.get(0),
     ).unwrap()
+}
+
+struct FileInfo {
+    hash: String,
+    date: NaiveDateTime,
+}
+
+fn db_upsert(db: &DbConnection, marker: &str, relative: &str, info: &FileInfo) {
 }
 
 fn exif_date(exif: &Exif) -> Option<::exif::DateTime> {
