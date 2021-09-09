@@ -3,6 +3,7 @@ use std::io::Cursor;
 
 use exif::{Exif, Reader};
 use globwalk::GlobWalkerBuilder;
+use sha1::{Sha1, Digest};
 
 fn main() {
     println!("Hello, world!");
@@ -23,7 +24,9 @@ fn main() {
         let path = entry.unwrap().path().to_owned();
         let buf = read(&path).unwrap();
 
-    // FIXME:    - calc sha1 hash
+        // Calculate sha1 hash of the file contents.
+        // TODO[LATER]: maybe switch to a secure hash (sha2 or other, see: https://github.com/RustCrypto/hashes)
+        let hash = format!("{:x}", Sha1::digest(&buf));
 
         // Extract some info from JPEG's Exif metadata
         let exif = Reader::new().read_from_container(&mut Cursor::new(buf)).unwrap();
@@ -36,7 +39,7 @@ fn main() {
     // FIXME:       - lanczos resizing
     // FIXME:       - deoriented
 
-        println!("{} {:?} {:?}", path.display(), date.map(|d| d.to_string()), orient);
+        println!("{} {} {:?} {:?}", hash, path.display(), date.map(|d| d.to_string()), orient);
     }
 
     // FIXME: Stage 2: scan all files once more and refresh them in DB
