@@ -4,7 +4,7 @@ use std::io::Cursor;
 use exif::{Exif, Reader};
 use globwalk::GlobWalkerBuilder;
 use image::io::Reader as ImageReader;
-use image::imageops::{resize, FilterType};
+use image::imageops::FilterType;
 use sha1::{Sha1, Digest};
 
 fn main() {
@@ -41,8 +41,8 @@ fn main() {
     // FIXME:       - lanczos resizing
     // FIXME:       - deoriented
         let img = ImageReader::new(Cursor::new(&buf)).with_guessed_format().unwrap().decode().unwrap();
-        // let thumb = resize(&img, 200, 200, FilterType::Lanczos3);
-        let thumb = resize(&img, 200, 200, FilterType::CatmullRom);
+        // let thumb = img.resize(200, 200, FilterType::Lanczos3);
+        let thumb = img.resize(200, 200, FilterType::CatmullRom);
         thumb.save("tmp.jpg").unwrap();
 
         println!("{} {} {:?} {:?}", hash, path.display(), date.map(|d| d.to_string()), orient);
