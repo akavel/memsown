@@ -9,4 +9,5 @@ edition = "2018"
 globwalk = "0.8.1"
 image = { version = "0.23", default-features = false, features = ["jpeg_rayon"] }
 kamadak-exif = "0.5"
+rusqlite = { version = "0.25", features = ["bundled"] }
 sha-1 = "0.9"

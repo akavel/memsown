@@ -5,10 +5,14 @@ use exif::{Exif, Reader};
 use globwalk::GlobWalkerBuilder;
 use image::io::Reader as ImageReader;
 use image::imageops::FilterType;
+use rusqlite::Connection as DbConnection;
 use sha1::{Sha1, Digest};
 
 fn main() {
     println!("Hello, world!");
+
+    let db = DbConnection::open("backer.db").unwrap();
+    db_init(&db);
 
     // mdb = openDb("backer.db")
     // let markers = @[
@@ -49,6 +53,28 @@ fn main() {
     }
 
     // FIXME: Stage 2: scan all files once more and refresh them in DB
+}
+
+fn db_init(db: &DbConnection) {
+    db.execute_batch("
+      CREATE TABLE IF NOT EXISTS file (
+        hash TEXT UNIQUE NOT NULL
+          CHECK(length(hash) > 0),
+        date TEXT,
+        thumbnail BLOB
+      );
+      CREATE INDEX IF NOT EXISTS file_date ON file(date);
+
+      CREATE TABLE IF NOT EXISTS location (
+        file_id INTEGER NOT NULL,
+        backend_tag STRING NOT NULL,
+        path STRING NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS
+        location_fileID ON location (file_id);
+      CREATE UNIQUE INDEX IF NOT EXISTS
+        location_perBackend ON location (backend_tag, path);
+      ").unwrap();
 }
 
 fn exif_date(exif: &Exif) -> Option<::exif::DateTime> {
