@@ -1,5 +1,6 @@
-use std::fs::read;
+use std::fs::{read, File};
 use std::io::Cursor;
+use std::path::Path;
 
 use exif::{Exif, Reader};
 use globwalk::GlobWalkerBuilder;
@@ -19,6 +20,9 @@ fn main() {
     //   r"d:\backer-id.json",
     //   r"c:\fotki\backer-id.json",
     // ]
+
+    let marker = marker_read(r"c:\fotki");
+    println!("marker {}", &marker);
 
     // FIXME: Stage 1: add not-yet-known files into DB
     let images = GlobWalkerBuilder::new(r"c:\fotki", "*.{jpg,jpeg}")
@@ -53,6 +57,20 @@ fn main() {
     }
 
     // FIXME: Stage 2: scan all files once more and refresh them in DB
+}
+
+fn marker_read(dir: &str) -> String {
+    // FIXME[LATER]: return some Result instead of unwrapping
+    use serde::Deserialize;
+    #[derive(Deserialize)]
+    struct Marker {
+        id: String,
+    }
+
+    let file = File::open(Path::new(dir).join("backer-id.json")).unwrap();
+    let reader = std::io::BufReader::new(file);
+    let m: Marker = serde_json::from_reader(reader).unwrap();
+    m.id
 }
 
 fn db_init(db: &DbConnection) {
