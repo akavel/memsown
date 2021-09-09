@@ -6,7 +6,8 @@ use exif::{Exif, Reader};
 use globwalk::GlobWalkerBuilder;
 use image::io::Reader as ImageReader;
 use image::imageops::FilterType;
-use rusqlite::Connection as DbConnection;
+use path_slash::PathExt;
+use rusqlite::{params, Connection as DbConnection};
 use sha1::{Sha1, Digest};
 
 fn main() {
@@ -21,11 +22,13 @@ fn main() {
     //   r"c:\fotki\backer-id.json",
     // ]
 
-    let marker = marker_read(r"c:\fotki");
+    let root = r"c:\fotki";
+
+    let marker = marker_read(&root);
     println!("marker {}", &marker);
 
     // FIXME: Stage 1: add not-yet-known files into DB
-    let images = GlobWalkerBuilder::new(r"c:\fotki", "*.{jpg,jpeg}")
+    let images = GlobWalkerBuilder::new(&root, "*.{jpg,jpeg}")
         .case_insensitive(true)
         .file_type(globwalk::FileType::FILE)
         .build();
@@ -33,6 +36,9 @@ fn main() {
         // TODO[LATER]: use `?` instead of .unwrap() and ret. some err from main() or print error info
         let path = entry.unwrap().path().to_owned();
         let buf = read(&path).unwrap();
+
+        let relative = path.strip_prefix(root).unwrap().to_slash().unwrap();
+        println!("{:?} {:?}", relative, db_exists(&db, &marker, &relative));
 
         // Calculate sha1 hash of the file contents.
         // TODO[LATER]: maybe switch to a secure hash (sha2 or other, see: https://github.com/RustCrypto/hashes)
@@ -93,6 +99,16 @@ fn db_init(db: &DbConnection) {
       CREATE UNIQUE INDEX IF NOT EXISTS
         location_perBackend ON location (backend_tag, path);
       ").unwrap();
+}
+
+fn db_exists(db: &DbConnection, marker: &str, relative: &str) -> bool {
+    db.query_row("
+        SELECT COUNT(*) FROM location
+          WHERE backend_tag = ?
+          AND path = ?",
+        params![marker, relative],
+        |row| row.get(0),
+    ).unwrap()
 }
 
 fn exif_date(exif: &Exif) -> Option<::exif::DateTime> {

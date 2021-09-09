@@ -35,6 +35,7 @@ dependencies = [
  "globwalk",
  "image",
  "kamadak-exif",
+ "path-slash",
  "rusqlite",
  "serde",
  "serde_json",
@@ -425,6 +426,12 @@ name = "opaque-debug"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "624a8340c38c1b80fd549087862da4ba43e08858af025b236e509b6649fc13d5"
+
+[[package]]
+name = "path-slash"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3cacbb3c4ff353b534a67fb8d7524d00229da4cb1dc8c79f4db96e375ab5b619"
 
 [[package]]
 name = "pkg-config"
