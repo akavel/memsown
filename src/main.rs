@@ -2,7 +2,7 @@ use std::ffi::OsStr;
 use std::fs::read;
 use std::io::Cursor;
 
-use exif::{Reader};
+use exif::{DateTime, In, Reader, Tag, Value};
 use walkdir::WalkDir;
 
 fn main() {
@@ -35,12 +35,19 @@ fn main() {
         // FIXME:    - extract exif orientation
         let exif = Reader::new().read_from_container(&mut Cursor::new(buf)).unwrap();
         // let exif = Reader::new().read_from_container(buf).unwrap();
+        let date = match exif.get_field(Tag::DateTime, In::PRIMARY) {
+            Some(::exif::Field{value: Value::Ascii(ref vec), ..})
+                if !vec.is_empty() => {
+                    DateTime::from_ascii(&vec[0]).ok()
+                }
+            _ => None
+        };
 
     // FIXME:    - create 200x200 thumbnail
     // FIXME:       - lanczos resizing
     // FIXME:       - deoriented
 
-        println!("{}", f.path().display());
+        println!("{} {:?}", f.path().display(), date.map(|d| d.to_string()));
     }
     // FIXME: Stage 2: scan all files once more and refresh them in DB
 }
