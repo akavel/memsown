@@ -18,7 +18,7 @@ fn main() {
         if !f.file_type().is_file() { continue; }
         let ext = f.path().extension().map(OsStr::to_str).flatten().map(str::to_ascii_lowercase);
         match ext.as_deref() {
-            Some("jpg") | Some("jpeg") => {},
+            Some("jpg") | Some("jpeg") => (),
             _ => continue
         }
 
