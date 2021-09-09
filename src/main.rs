@@ -15,7 +15,6 @@ fn main() {
     // ]
 
     // FIXME: Stage 1: add not-yet-known files into DB
-    // FIXME:  foreach *.{jpg,jpeg} in c:\fotki\...:
     for entry in WalkDir::new(r"c:\fotki") {
         // TODO[LATER]: use `?` instead of .unwrap() and ret. some err from main() or print error info
         let f = entry.unwrap();
@@ -44,6 +43,7 @@ fn main() {
 
         println!("{} {:?} {:?}", f.path().display(), date.map(|d| d.to_string()), orient);
     }
+
     // FIXME: Stage 2: scan all files once more and refresh them in DB
 }
 
