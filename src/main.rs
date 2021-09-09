@@ -18,7 +18,7 @@ fn main() {
         if !f.file_type().is_file() { continue; }
         // TODO[LATER]: (how) can we make below block shorter & prettier?
         // let ext = f.path().extension().map(|s| s.to_ascii_lowercase().to_str()).flatten();
-        let ext = f.path().extension().map(OsStr::to_str).flatten().map(|s| s.to_ascii_lowercase());
+        let ext = f.path().extension().map(OsStr::to_str).flatten().map(str::to_ascii_lowercase);
         // println!("{:?}", ext);
         match ext.as_deref() {
             Some("jpg") | Some("jpeg") => {},
