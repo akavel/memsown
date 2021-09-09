@@ -20,6 +20,7 @@ fn main() {
         let f = entry.unwrap();
 
         // We're interested only in files, and only with .jpg/.jpeg extension
+        // TODO[LATER]: simplify this, through some iterator expression maybe + 'globset' crate [or 'wax' crate]
         if !f.file_type().is_file() { continue; }
         let ext = f.path().extension().map(OsStr::to_str).flatten().map(str::to_ascii_lowercase);
         match ext.as_deref() {
