@@ -2,7 +2,7 @@ use std::ffi::OsStr;
 use std::fs::read;
 use std::io::Cursor;
 
-use exif::{DateTime, In, Reader, Tag, Value};
+use exif::{Exif, Reader};
 use walkdir::WalkDir;
 
 fn main() {
@@ -31,17 +31,10 @@ fn main() {
 
     // FIXME:    - calc sha1 hash
 
-        // FIXME:    - extract exif date
-        // FIXME:    - extract exif orientation
+        // Extract some info from JPEG's Exif metadata
         let exif = Reader::new().read_from_container(&mut Cursor::new(buf)).unwrap();
-        // let exif = Reader::new().read_from_container(buf).unwrap();
-        let date = match exif.get_field(Tag::DateTime, In::PRIMARY) {
-            Some(::exif::Field{value: Value::Ascii(ref vec), ..})
-                if !vec.is_empty() => {
-                    DateTime::from_ascii(&vec[0]).ok()
-                }
-            _ => None
-        };
+        let date = exif_date(&exif);
+        // FIXME:    - extract exif orientation
 
     // FIXME:    - create 200x200 thumbnail
     // FIXME:       - lanczos resizing
@@ -52,3 +45,14 @@ fn main() {
     // FIXME: Stage 2: scan all files once more and refresh them in DB
 }
 
+fn exif_date(exif: &Exif) -> Option<::exif::DateTime> {
+    use exif::{DateTime, Field, In, Tag, Value};
+
+    match exif.get_field(Tag::DateTime, In::PRIMARY) {
+        Some(Field{value: Value::Ascii(ref vec), ..})
+            if !vec.is_empty() => {
+                DateTime::from_ascii(&vec[0]).ok()
+            }
+        _ => None
+    }
+}
