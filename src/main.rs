@@ -1,9 +1,8 @@
-use std::ffi::OsStr;
 use std::fs::read;
 use std::io::Cursor;
 
 use exif::{Exif, Reader};
-use walkdir::WalkDir;
+use globwalk::GlobWalkerBuilder;
 
 fn main() {
     println!("Hello, world!");
@@ -15,19 +14,14 @@ fn main() {
     // ]
 
     // FIXME: Stage 1: add not-yet-known files into DB
-    for entry in WalkDir::new(r"c:\fotki") {
+    let images = GlobWalkerBuilder::new(r"c:\fotki", "*.{jpg,jpeg}")
+        .case_insensitive(true)
+        .file_type(globwalk::FileType::FILE)
+        .build();
+    for entry in images.unwrap() {
         // TODO[LATER]: use `?` instead of .unwrap() and ret. some err from main() or print error info
-        let f = entry.unwrap();
-
-        // We're interested only in files, and only with .jpg/.jpeg extension
-        // TODO[LATER]: simplify this, through some iterator expression maybe + 'globset' crate [or 'wax' crate]
-        if !f.file_type().is_file() { continue; }
-        let ext = f.path().extension().map(OsStr::to_str).flatten().map(str::to_ascii_lowercase);
-        match ext.as_deref() {
-            Some("jpg") | Some("jpeg") => (),
-            _ => continue
-        }
-        let buf = read(f.path()).unwrap();
+        let path = entry.unwrap().path().to_owned();
+        let buf = read(&path).unwrap();
 
     // FIXME:    - calc sha1 hash
 
@@ -42,7 +36,7 @@ fn main() {
     // FIXME:       - lanczos resizing
     // FIXME:       - deoriented
 
-        println!("{} {:?} {:?}", f.path().display(), date.map(|d| d.to_string()), orient);
+        println!("{} {:?} {:?}", path.display(), date.map(|d| d.to_string()), orient);
     }
 
     // FIXME: Stage 2: scan all files once more and refresh them in DB
