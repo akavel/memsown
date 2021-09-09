@@ -3,6 +3,7 @@ use std::io::Cursor;
 
 use exif::{Exif, Reader};
 use globwalk::GlobWalkerBuilder;
+use image::io::Reader as ImageReader;
 use sha1::{Sha1, Digest};
 
 fn main() {
@@ -29,7 +30,7 @@ fn main() {
         let hash = format!("{:x}", Sha1::digest(&buf));
 
         // Extract some info from JPEG's Exif metadata
-        let exif = Reader::new().read_from_container(&mut Cursor::new(buf)).unwrap();
+        let exif = Reader::new().read_from_container(&mut Cursor::new(&buf)).unwrap();
         let date = exif_date(&exif);
         let orient = exif_orientation(&exif);
         // TODO: test exif deorienting with cases from: https://github.com/recurser/exif-orientation-examples
@@ -38,6 +39,7 @@ fn main() {
     // FIXME:    - create 200x200 thumbnail
     // FIXME:       - lanczos resizing
     // FIXME:       - deoriented
+        let img = ImageReader::new(Cursor::new(&buf)).with_guessed_format().unwrap().decode().unwrap();
 
         println!("{} {} {:?} {:?}", hash, path.display(), date.map(|d| d.to_string()), orient);
     }

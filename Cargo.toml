@@ -7,5 +7,6 @@ edition = "2018"
 
 [dependencies]
 globwalk = "0.8.1"
+image = "0.23"
 kamadak-exif = "0.5"
 sha-1 = "0.9"
