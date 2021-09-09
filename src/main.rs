@@ -34,13 +34,15 @@ fn main() {
         // Extract some info from JPEG's Exif metadata
         let exif = Reader::new().read_from_container(&mut Cursor::new(buf)).unwrap();
         let date = exif_date(&exif);
-        // FIXME:    - extract exif orientation
+        let orient = exif_orientation(&exif);
+        // TODO: test exif deorienting with cases from: https://github.com/recurser/exif-orientation-examples
+        // (see also: https://www.daveperrett.com/articles/2012/07/28/exif-orientation-handling-is-a-ghetto)
 
     // FIXME:    - create 200x200 thumbnail
     // FIXME:       - lanczos resizing
     // FIXME:       - deoriented
 
-        println!("{} {:?}", f.path().display(), date.map(|d| d.to_string()));
+        println!("{} {:?} {:?}", f.path().display(), date.map(|d| d.to_string()), orient);
     }
     // FIXME: Stage 2: scan all files once more and refresh them in DB
 }
@@ -53,6 +55,17 @@ fn exif_date(exif: &Exif) -> Option<::exif::DateTime> {
             if !vec.is_empty() => {
                 DateTime::from_ascii(&vec[0]).ok()
             }
+        _ => None
+    }
+}
+
+// TODO: for meaning, see: https://magnushoff.com/articles/jpeg-orientation/
+fn exif_orientation(exif: &Exif) -> Option<u16> {
+    use exif::{Field, In, Tag, Value};
+
+    match exif.get_field(Tag::Orientation, In::PRIMARY) {
+        Some(Field{value: Value::Short(ref vec), ..})
+            if !vec.is_empty() => Some(vec[0]),
         _ => None
     }
 }
