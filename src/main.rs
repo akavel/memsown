@@ -1,5 +1,5 @@
 use std::fs::{read, File};
-use std::io::Cursor;
+use std::io::{Cursor, Write};
 use std::path::Path;
 
 use chrono::naive::{NaiveDate, NaiveDateTime};
@@ -13,6 +13,9 @@ use sha1::{Sha1, Digest};
 
 fn main() {
     println!("Hello, world!");
+
+    let raw_stdout = std::io::stdout();
+    let mut stdout = raw_stdout.lock();
 
     let db = DbConnection::open("backer.db").unwrap();
     db_init(&db);
@@ -39,7 +42,12 @@ fn main() {
         let buf = read(&path).unwrap();
 
         let relative = path.strip_prefix(root).unwrap().to_slash().unwrap();
-        println!("{:?} {:?}", relative, db_exists(&db, &marker, &relative));
+        if db_exists(&db, &marker, &relative) {
+            stdout.write(b".").unwrap();
+            stdout.flush().unwrap();
+            continue;
+        }
+
 
         // Calculate sha1 hash of the file contents.
         // TODO[LATER]: maybe switch to a secure hash (sha2 or other, see: https://github.com/RustCrypto/hashes)
@@ -63,12 +71,16 @@ fn main() {
         // let thumb = img.resize(200, 200, FilterType::Lanczos3);
         let thumb = img.resize(200, 200, FilterType::CatmullRom);
         thumb.save("tmp.jpg").unwrap();
+        let mut thumb_jpeg = Vec::<u8>::new();
+        thumb.write_to(&mut thumb_jpeg, image::ImageOutputFormat::Jpeg(25)).unwrap();
 
         let info = FileInfo{
             hash: hash.clone(),
             date: NaiveDate::from_ymd(date.year.into(), date.month.into(), date.day.into())
                 .and_hms(date.hour.into(), date.minute.into(), date.second.into()),
+            thumb: thumb_jpeg,
         };
+        db_upsert(&db, &marker, &relative, &info);
 
         println!("{} {} {:?} {:?}", &hash, path.display(), date.to_string(), orient);
     }
@@ -125,9 +137,22 @@ fn db_exists(db: &DbConnection, marker: &str, relative: &str) -> bool {
 struct FileInfo {
     hash: String,
     date: NaiveDateTime,
+    thumb: Vec<u8>,
 }
 
 fn db_upsert(db: &DbConnection, marker: &str, relative: &str, info: &FileInfo) {
+    db.execute("
+        INSERT INTO file(hash,date,thumbnail) VALUES(?,?,?)
+          ON CONFLICT(hash) DO UPDATE SET
+            date = ifnull(date, excluded.date)",
+        params![&info.hash, &info.date, &info.thumb],
+    ).unwrap();
+    db.execute("
+        INSERT INTO location(file_id,backend_tag,path)
+          SELECT rowid, ?, ? FROM file
+            WHERE hash = ? LIMIT 1;",
+        params![&marker, &relative, &info.hash],
+    ).unwrap();
 }
 
 fn exif_date(exif: &Exif) -> Option<::exif::DateTime> {
