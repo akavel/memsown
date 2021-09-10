@@ -12,6 +12,8 @@ use rusqlite::{params, Connection as DbConnection};
 use sha1::{Sha1, Digest};
 
 fn main() {
+    // TODO[LATER]: run rustfmt on this repo
+    // TODO[LATER]: run clippy on this repo
     println!("Hello, world!");
 
     let raw_stdout = std::io::stdout();
