@@ -57,28 +57,13 @@ fn main() -> Result<()> {
         // TODO[LATER]: maybe switch to a secure hash (sha2 or other, see: https://github.com/RustCrypto/hashes)
         let hash = format!("{:x}", Sha1::digest(&buf));
 
-        /*
-        
-            if Exif found:
-                orientation = try from Exif, or default
-                date = try from Exif(Tag::DateTime),
-                    or from Exif(Tag::...),
-                    or empty for now
-            if date empty:
-                date = try from filename
-         */
-
-        // Can we get Exif block from JPEG? Assumed to be the most reliable source of metadata we need.
+        // Does the JPEG have Exif block? We assume it'd be the most reliable source of metadata.
         let exif = Reader::new().read_from_container(&mut Cursor::new(&buf)).ok();
         // TODO[LATER]: use some orientation enum / stricter type instead of raw u16
-        let orientation = exif.as_ref().and_then(exif_orientation).unwrap_or(1);
-        // TODO[LATER]: try to allow the field to be nullable in DB instead of using "zero date" on failure
-        let date = try_deduce_date(exif.as_ref(), &relative).unwrap_or(
-            NaiveDate::from_ymd(0, 0, 0).and_hms(0, 0, 0)
-        );
-        // let orient = exif_orientation(&exif);
-        // TODO: test exif deorienting with cases from: https://github.com/recurser/exif-orientation-examples
+        // TODO[LATER]: test exif deorienting with cases from: https://github.com/recurser/exif-orientation-examples
         // (see also: https://www.daveperrett.com/articles/2012/07/28/exif-orientation-handling-is-a-ghetto)
+        let orientation = exif.as_ref().and_then(exif_orientation).unwrap_or(1);
+        let date = try_deduce_date(exif.as_ref(), &relative);
 
     // FIXME:    - create 200x200 thumbnail
     // FIXME:       - lanczos resizing
@@ -86,7 +71,6 @@ fn main() -> Result<()> {
         let img = ImageReader::new(Cursor::new(&buf)).with_guessed_format()?.decode()?;
         // let thumb = img.resize(200, 200, FilterType::Lanczos3);
         let thumb = img.resize(200, 200, FilterType::CatmullRom);
-        // thumb.save("tmp.jpg")?;
         let mut thumb_jpeg = Vec::<u8>::new();
         thumb.write_to(&mut thumb_jpeg, image::ImageOutputFormat::Jpeg(25))?;
 
@@ -97,7 +81,7 @@ fn main() -> Result<()> {
         };
         db_upsert(&db, &marker, &relative, &info)?;
 
-        println!("{} {} {:?} {:?}", &hash, path.display(), date.to_string(), orientation);
+        println!("{} {} {:?} {:?}", &hash, path.display(), date.map(|d| d.to_string()), orientation);
     }
 
     // FIXME: Stage 2: scan all files once more and refresh them in DB
@@ -152,7 +136,7 @@ fn db_exists(db: &DbConnection, marker: &str, relative: &str) -> ::rusqlite::Res
 
 struct FileInfo {
     hash: String,
-    date: NaiveDateTime,
+    date: Option<NaiveDateTime>,
     thumb: Vec<u8>,
 }
 
@@ -185,11 +169,8 @@ fn try_deduce_date(exif: Option<&Exif>, relative_path: &str) -> Option<NaiveDate
         }
         // TODO[LATER]: are ther other fields we could try?
     }
-    // let exif_date = if let Some(exif) = exif {
-    //     exif_date_from(&exif, Tag::DateTime)
-    //         .or_else(|| exif_date_from(&exif, Tag::DateTimeOriginal)
-    // }
     // TODO[LATER]: try extracting date from relative_path
+    // TODO[LATER]: try extracting date from file's creation and modification date (NOTE: latter can be earlier than former on Windows!)
     None
 }
 
