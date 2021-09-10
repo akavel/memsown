@@ -57,14 +57,26 @@ fn main() -> Result<()> {
         // TODO[LATER]: maybe switch to a secure hash (sha2 or other, see: https://github.com/RustCrypto/hashes)
         let hash = format!("{:x}", Sha1::digest(&buf));
 
-        // Extract some info from JPEG's Exif metadata
-        let exif = Reader::new().read_from_container(&mut Cursor::new(&buf))?;
-        // TODO[LATER]: extract date from other Exif fields or filename
-        let date = exif_date(&exif).unwrap_or(::exif::DateTime{
-            year: 0, month: 0, day: 0, hour: 0, minute: 0, second: 0,
-            nanosecond: None, offset: None,
-        });
-        let orient = exif_orientation(&exif);
+        /*
+        
+            if Exif found:
+                orientation = try from Exif, or default
+                date = try from Exif(Tag::DateTime),
+                    or from Exif(Tag::...),
+                    or empty for now
+            if date empty:
+                date = try from filename
+         */
+
+        // Can we get Exif block from JPEG? Assumed to be the most reliable source of metadata we need.
+        let exif = Reader::new().read_from_container(&mut Cursor::new(&buf)).ok();
+        // TODO[LATER]: use some orientation enum / stricter type instead of raw u16
+        let orientation = exif.as_ref().and_then(exif_orientation).unwrap_or(1);
+        // TODO[LATER]: try to allow the field to be nullable in DB instead of using "zero date" on failure
+        let date = try_deduce_date(exif.as_ref(), &relative).unwrap_or(
+            NaiveDate::from_ymd(0, 0, 0).and_hms(0, 0, 0)
+        );
+        // let orient = exif_orientation(&exif);
         // TODO: test exif deorienting with cases from: https://github.com/recurser/exif-orientation-examples
         // (see also: https://www.daveperrett.com/articles/2012/07/28/exif-orientation-handling-is-a-ghetto)
 
@@ -74,19 +86,18 @@ fn main() -> Result<()> {
         let img = ImageReader::new(Cursor::new(&buf)).with_guessed_format()?.decode()?;
         // let thumb = img.resize(200, 200, FilterType::Lanczos3);
         let thumb = img.resize(200, 200, FilterType::CatmullRom);
-        thumb.save("tmp.jpg")?;
+        // thumb.save("tmp.jpg")?;
         let mut thumb_jpeg = Vec::<u8>::new();
         thumb.write_to(&mut thumb_jpeg, image::ImageOutputFormat::Jpeg(25))?;
 
         let info = FileInfo{
             hash: hash.clone(),
-            date: NaiveDate::from_ymd(date.year.into(), date.month.into(), date.day.into())
-                .and_hms(date.hour.into(), date.minute.into(), date.second.into()),
+            date: date,
             thumb: thumb_jpeg,
         };
         db_upsert(&db, &marker, &relative, &info)?;
 
-        println!("{} {} {:?} {:?}", &hash, path.display(), date.to_string(), orient);
+        println!("{} {} {:?} {:?}", &hash, path.display(), date.to_string(), orientation);
     }
 
     // FIXME: Stage 2: scan all files once more and refresh them in DB
@@ -161,10 +172,36 @@ fn db_upsert(db: &DbConnection, marker: &str, relative: &str, info: &FileInfo) -
     Ok(())
 }
 
-fn exif_date(exif: &Exif) -> Option<::exif::DateTime> {
-    use exif::{DateTime, Field, In, Tag, Value};
+/// Try hard to find out some datetime info from either `exif` data, or `relative_path` of the file.
+fn try_deduce_date(exif: Option<&Exif>, relative_path: &str) -> Option<NaiveDateTime> {
+    if let Some(exif) = exif {
+        use exif::Tag;
+        if let Some(d) = exif_date_from(&exif, Tag::DateTime) {
+            return Some(exif_date_to_naive(&d));
+        }
+        // TODO[LATER]: does this field make sense?
+        if let Some(d) = exif_date_from(&exif, Tag::DateTimeOriginal) {
+            return Some(exif_date_to_naive(&d));
+        }
+        // TODO[LATER]: are ther other fields we could try?
+    }
+    // let exif_date = if let Some(exif) = exif {
+    //     exif_date_from(&exif, Tag::DateTime)
+    //         .or_else(|| exif_date_from(&exif, Tag::DateTimeOriginal)
+    // }
+    // TODO[LATER]: try extracting date from relative_path
+    None
+}
 
-    match exif.get_field(Tag::DateTime, In::PRIMARY) {
+fn exif_date_to_naive(d: &::exif::DateTime) -> NaiveDateTime {
+    NaiveDate::from_ymd(d.year.into(), d.month.into(), d.day.into())
+        .and_hms(d.hour.into(), d.minute.into(), d.second.into())
+}
+
+fn exif_date_from(exif: &Exif, tag: ::exif::Tag) -> Option<::exif::DateTime> {
+    use exif::{DateTime, Field, In, Value};
+
+    match exif.get_field(tag, In::PRIMARY) {
         Some(Field{value: Value::Ascii(ref vec), ..})
             if !vec.is_empty() => {
                 DateTime::from_ascii(&vec[0]).ok()
