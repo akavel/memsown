@@ -5,6 +5,8 @@ use rusqlite::{params, Connection as DbConnection, OptionalExtension};
 fn main() -> iced::Result {
     println!("Hello view");
 
+    // TODO[LATER]: see if IPFS can be reused from: https://github.com/FuzzrNet/Fuzzr
+
     Gallery::run(iced::Settings::default())
 }
 
