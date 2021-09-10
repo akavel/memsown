@@ -5,12 +5,6 @@ use rusqlite::{params, Connection as DbConnection, OptionalExtension};
 fn main() -> iced::Result {
     println!("Hello view");
 
-
-    // FIXME: Milestone: just show single thumbnail from DB, using iced crate
-
-    // FIXME: scrollable window with Gallery widget inside
-    // FIXME: Gallery widget showing thumbnails & date separators, based on DB contents
-
     Gallery::run(iced::Settings::default())
 }
 
@@ -36,6 +30,11 @@ impl iced::Sandbox for Gallery {
     }
 
     fn view(&mut self) -> iced::Element<Self::Message> {
+        // FIXME: Milestone: show n=15 images in grid
+        // FIXME: Milestone: wrap in scrollable
+        // FIXME: Milestone: add date headers
+        // FIXME: Milestone: detect click
+        // FIXME: Milestone: add preview window on click
         let thumb = self.db.query_row(
             "SELECT thumbnail FROM file LIMIT 1",
             [],
