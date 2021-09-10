@@ -4,7 +4,7 @@ use std::path::Path;
 
 use anyhow::{Context, Result};
 use chrono::naive::{NaiveDate, NaiveDateTime};
-use exif::{Exif, Reader};
+use exif::{Exif, Reader as ExifReader};
 use globwalk::GlobWalkerBuilder;
 use image::io::Reader as ImageReader;
 use image::imageops::FilterType;
@@ -58,7 +58,7 @@ fn main() -> Result<()> {
         let hash = format!("{:x}", Sha1::digest(&buf));
 
         // Does the JPEG have Exif block? We assume it'd be the most reliable source of metadata.
-        let exif = Reader::new().read_from_container(&mut Cursor::new(&buf)).ok();
+        let exif = ExifReader::new().read_from_container(&mut Cursor::new(&buf)).ok();
         // TODO[LATER]: use some orientation enum / stricter type instead of raw u16
         // TODO[LATER]: test exif deorienting with cases from: https://github.com/recurser/exif-orientation-examples
         // (see also: https://www.daveperrett.com/articles/2012/07/28/exif-orientation-handling-is-a-ghetto)
@@ -68,7 +68,16 @@ fn main() -> Result<()> {
     // FIXME:    - create 200x200 thumbnail
     // FIXME:       - lanczos resizing
     // FIXME:       - deoriented
-        let img = ImageReader::new(Cursor::new(&buf)).with_guessed_format()?.decode()?;
+        let img = match ImageReader::new(Cursor::new(&buf)).with_guessed_format()?.decode() {
+            Ok(img) => img,
+            Err(err) => {
+                // TODO[LATER]: use termcolor crate to print errors in red
+                eprintln!("\nFailed to decode JPEG {:?}, skipping: {}", &path, err);
+                continue;
+            }
+        };
+        // let img = ImageReader::new(Cursor::new(&buf)).with_guessed_format()?.decode()
+        //     .with_context(|| format!("Failed to decode JPEG {:?}", &path))?;
         // let thumb = img.resize(200, 200, FilterType::Lanczos3);
         let thumb = img.resize(200, 200, FilterType::CatmullRom);
         let mut thumb_jpeg = Vec::<u8>::new();
@@ -81,7 +90,9 @@ fn main() -> Result<()> {
         };
         db_upsert(&db, &marker, &relative, &info)?;
 
-        println!("{} {} {:?} {:?}", &hash, path.display(), date.map(|d| d.to_string()), orientation);
+        stdout.write_all(b"+")?;
+        stdout.flush()?;
+        // println!("{} {} {:?} {:?}", &hash, path.display(), date.map(|d| d.to_string()), orientation);
     }
 
     // FIXME: Stage 2: scan all files once more and refresh them in DB
