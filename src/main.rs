@@ -30,7 +30,7 @@ fn main() {
 
     let root = r"c:\fotki";
 
-    let marker = marker_read(&root);
+    let marker = marker_read(root);
     println!("marker {}", &marker);
 
     // FIXME: Stage 1: add not-yet-known files into DB
@@ -45,7 +45,7 @@ fn main() {
 
         let relative = path.strip_prefix(root).unwrap().to_slash().unwrap();
         if db_exists(&db, &marker, &relative) {
-            stdout.write(b".").unwrap();
+            stdout.write_all(b".").unwrap();
             stdout.flush().unwrap();
             continue;
         }
