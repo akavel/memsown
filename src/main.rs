@@ -2,6 +2,7 @@ use std::fs::{read, File};
 use std::io::{Cursor, Write};
 use std::path::Path;
 
+use anyhow::{Context, Result};
 use chrono::naive::{NaiveDate, NaiveDateTime};
 use exif::{Exif, Reader};
 use globwalk::GlobWalkerBuilder;
@@ -11,7 +12,7 @@ use path_slash::PathExt;
 use rusqlite::{params, Connection as DbConnection};
 use sha1::{Sha1, Digest};
 
-fn main() {
+fn main() -> Result<()> {
     // TODO[LATER]: run rustfmt on this repo
     // TODO[LATER]: run clippy on this repo
     println!("Hello, world!");
@@ -19,8 +20,8 @@ fn main() {
     let raw_stdout = std::io::stdout();
     let mut stdout = raw_stdout.lock();
 
-    let db = DbConnection::open("backer.db").unwrap();
-    db_init(&db);
+    let db = DbConnection::open("backer.db")?;
+    db_init(&db)?;
 
     // mdb = openDb("backer.db")
     // let markers = @[
@@ -30,23 +31,24 @@ fn main() {
 
     let root = r"c:\fotki";
 
-    let marker = marker_read(root);
+    let marker = marker_read(root)?;
     println!("marker {}", &marker);
 
-    // FIXME: Stage 1: add not-yet-known files into DB
+    // Stage 1: add not-yet-known files into DB
     let images = GlobWalkerBuilder::new(&root, "*.{jpg,jpeg}")
         .case_insensitive(true)
         .file_type(globwalk::FileType::FILE)
         .build();
-    for entry in images.unwrap() {
-        // TODO[LATER]: use `?` instead of .unwrap() and ret. some err from main() or print error info
-        let path = entry.unwrap().path().to_owned();
-        let buf = read(&path).unwrap();
+    for entry in images? {
+        let path = entry?.path().to_owned();
+        let buf = read(&path)?;
 
-        let relative = path.strip_prefix(root).unwrap().to_slash().unwrap();
-        if db_exists(&db, &marker, &relative) {
-            stdout.write_all(b".").unwrap();
-            stdout.flush().unwrap();
+        let os_relative = path.strip_prefix(root)?;
+        let relative = os_relative.to_slash()
+            .with_context(|| format!("Failed to convert path {:?} to slash-based", os_relative))?;
+        if db_exists(&db, &marker, &relative)? {
+            stdout.write_all(b".")?;
+            stdout.flush()?;
             continue;
         }
 
@@ -56,7 +58,7 @@ fn main() {
         let hash = format!("{:x}", Sha1::digest(&buf));
 
         // Extract some info from JPEG's Exif metadata
-        let exif = Reader::new().read_from_container(&mut Cursor::new(&buf)).unwrap();
+        let exif = Reader::new().read_from_container(&mut Cursor::new(&buf))?;
         // TODO[LATER]: extract date from other Exif fields or filename
         let date = exif_date(&exif).unwrap_or(::exif::DateTime{
             year: 0, month: 0, day: 0, hour: 0, minute: 0, second: 0,
@@ -69,12 +71,12 @@ fn main() {
     // FIXME:    - create 200x200 thumbnail
     // FIXME:       - lanczos resizing
     // FIXME:       - deoriented
-        let img = ImageReader::new(Cursor::new(&buf)).with_guessed_format().unwrap().decode().unwrap();
+        let img = ImageReader::new(Cursor::new(&buf)).with_guessed_format()?.decode()?;
         // let thumb = img.resize(200, 200, FilterType::Lanczos3);
         let thumb = img.resize(200, 200, FilterType::CatmullRom);
-        thumb.save("tmp.jpg").unwrap();
+        thumb.save("tmp.jpg")?;
         let mut thumb_jpeg = Vec::<u8>::new();
-        thumb.write_to(&mut thumb_jpeg, image::ImageOutputFormat::Jpeg(25)).unwrap();
+        thumb.write_to(&mut thumb_jpeg, image::ImageOutputFormat::Jpeg(25))?;
 
         let info = FileInfo{
             hash: hash.clone(),
@@ -82,29 +84,30 @@ fn main() {
                 .and_hms(date.hour.into(), date.minute.into(), date.second.into()),
             thumb: thumb_jpeg,
         };
-        db_upsert(&db, &marker, &relative, &info);
+        db_upsert(&db, &marker, &relative, &info)?;
 
         println!("{} {} {:?} {:?}", &hash, path.display(), date.to_string(), orient);
     }
 
     // FIXME: Stage 2: scan all files once more and refresh them in DB
+
+    Ok(())
 }
 
-fn marker_read(dir: &str) -> String {
-    // FIXME[LATER]: return some Result instead of unwrapping
+fn marker_read(dir: &str) -> Result<String> {
     use serde::Deserialize;
     #[derive(Deserialize)]
     struct Marker {
         id: String,
     }
 
-    let file = File::open(Path::new(dir).join("backer-id.json")).unwrap();
+    let file = File::open(Path::new(dir).join("backer-id.json"))?;
     let reader = std::io::BufReader::new(file);
-    let m: Marker = serde_json::from_reader(reader).unwrap();
-    m.id
+    let m: Marker = serde_json::from_reader(reader)?;
+    Ok(m.id)
 }
 
-fn db_init(db: &DbConnection) {
+fn db_init(db: &DbConnection) -> ::rusqlite::Result<()> {
     db.execute_batch("
       CREATE TABLE IF NOT EXISTS file (
         hash TEXT UNIQUE NOT NULL
@@ -123,17 +126,17 @@ fn db_init(db: &DbConnection) {
         location_fileID ON location (file_id);
       CREATE UNIQUE INDEX IF NOT EXISTS
         location_perBackend ON location (backend_tag, path);
-      ").unwrap();
+      ")
 }
 
-fn db_exists(db: &DbConnection, marker: &str, relative: &str) -> bool {
+fn db_exists(db: &DbConnection, marker: &str, relative: &str) -> ::rusqlite::Result<bool> {
     db.query_row("
         SELECT COUNT(*) FROM location
           WHERE backend_tag = ?
           AND path = ?",
         params![marker, relative],
         |row| row.get(0),
-    ).unwrap()
+    )
 }
 
 struct FileInfo {
@@ -142,19 +145,20 @@ struct FileInfo {
     thumb: Vec<u8>,
 }
 
-fn db_upsert(db: &DbConnection, marker: &str, relative: &str, info: &FileInfo) {
+fn db_upsert(db: &DbConnection, marker: &str, relative: &str, info: &FileInfo) -> Result<()> {
     db.execute("
         INSERT INTO file(hash,date,thumbnail) VALUES(?,?,?)
           ON CONFLICT(hash) DO UPDATE SET
             date = ifnull(date, excluded.date)",
         params![&info.hash, &info.date, &info.thumb],
-    ).unwrap();
+    )?;
     db.execute("
         INSERT INTO location(file_id,backend_tag,path)
           SELECT rowid, ?, ? FROM file
             WHERE hash = ? LIMIT 1;",
         params![&marker, &relative, &info.hash],
-    ).unwrap();
+    )?;
+    Ok(())
 }
 
 fn exif_date(exif: &Exif) -> Option<::exif::DateTime> {
