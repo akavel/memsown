@@ -9,7 +9,7 @@ edition = "2018"
 anyhow = "1.0"
 chrono = "0.4"
 globwalk = "0.8.1"
-iced = "0.3"
+iced = { version = "0.3", features = ["image"] }
 image = { version = "0.23", default-features = false, features = ["jpeg_rayon"] }
 kamadak-exif = "0.5"
 path-slash = "0.1"

@@ -1,6 +1,6 @@
 use anyhow::Result;
 use iced::Sandbox;
-use rusqlite::{params, Connection as DbConnection};
+use rusqlite::{params, Connection as DbConnection, OptionalExtension};
 
 fn main() -> iced::Result {
     println!("Hello view");
@@ -36,7 +36,16 @@ impl iced::Sandbox for Gallery {
     }
 
     fn view(&mut self) -> iced::Element<Self::Message> {
-        use iced::Text;
-        Text::new("Hello, world!").into()
+        let thumb = self.db.query_row(
+            "SELECT thumbnail FROM file LIMIT 1",
+            [],
+            |row| row.get(0),
+        ).optional().unwrap();
+
+        use iced::{Text, Image, image::Handle};
+        match thumb {
+            None => Text::new("No thumbnails found in DB").into(),
+            Some(img) => Image::new(Handle::from_memory(img)).into(),
+        }
     }
 }
