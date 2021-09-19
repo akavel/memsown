@@ -1,4 +1,4 @@
-use iced_graphics::{Backend, Renderer};
+use iced_graphics::{Backend, Primitive, Renderer};
 use iced_native::{
     layout, mouse,
     Layout, Length, Point, Widget,
@@ -39,8 +39,8 @@ where B: Backend,
         _: &iced_graphics::Defaults,
         _layout: Layout<'_>,
         _cursor: Point,
-        _viewport: &iced_graphics::Rectangle,
-    ) -> (iced_graphics::Primitive, mouse::Interaction) {
+        viewport: &iced_graphics::Rectangle,
+    ) -> (Primitive, mouse::Interaction) {
         // TODO(akavel): try looking into Column (in iced_wgpu?) to understand viewport? [via Zuris@discord]
 
         // TODO(akavel): contribute below explanation to iced_native::Widget docs
@@ -54,5 +54,11 @@ where B: Backend,
         //          same coordinate system as layout.bounds(), not relative to them?
         //  hecrj: Yes, same system.
 
+        let lineSvg = format!(r#"
+            <svg width="{0}" height="{1}">
+                <line x1="0" y1="0" x2="{0}" y2="{1}" style="stroke:rgb(255,0,0);stroke-width:2" />
+            </svg>"#, viewport.width, viewport.height);
+        let line = iced_graphics::widget::svg::Handle::from_memory(lineSvg);
+        (Primitive::Svg { line, viewport }, mouse::Interaction::default())
     }
 }
