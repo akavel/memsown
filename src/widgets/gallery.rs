@@ -1,7 +1,7 @@
 use iced_graphics::{Backend, Primitive, Renderer};
 use iced_native::{
     layout, mouse,
-    Layout, Length, Point, Widget,
+    Layout, Length, Point, Size, Widget,
 };
 
 pub struct Gallery {
@@ -25,7 +25,11 @@ where B: Backend,
         // TODO(akavel): if needed, fill in as appropriate once some internal state is added
     }
 
-    fn layout(&self, _: &Renderer<B>, _: &layout::Limits) -> layout::Node {
+    fn layout(
+        &self,
+        _: &Renderer<B>,
+        limits: &layout::Limits,
+    ) -> layout::Node {
         // Note(akavel): not 100% sure what I'm doing here yet; general idea based off:
         // https://github.com/iced-rs/iced/blob/f78108a514563411e617715443bba53f4f4610ec/examples/geometry/src/main.rs#L47-L49
         // TODO(akavel): see what happens if I use bigger Size in resolve()
@@ -54,11 +58,11 @@ where B: Backend,
         //          same coordinate system as layout.bounds(), not relative to them?
         //  hecrj: Yes, same system.
 
-        let lineSvg = format!(r#"
+        let line_svg = format!(r#"
             <svg width="{0}" height="{1}">
                 <line x1="0" y1="0" x2="{0}" y2="{1}" style="stroke:rgb(255,0,0);stroke-width:2" />
             </svg>"#, viewport.width, viewport.height);
-        let line = iced_graphics::widget::svg::Handle::from_memory(lineSvg);
-        (Primitive::Svg { line, viewport }, mouse::Interaction::default())
+        let line = iced_graphics::widget::svg::Handle::from_memory(line_svg);
+        (Primitive::Svg { handle: line, bounds: *viewport }, mouse::Interaction::default())
     }
 }
