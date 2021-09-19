@@ -107,6 +107,8 @@ dependencies = [
  "chrono",
  "globwalk",
  "iced",
+ "iced_graphics",
+ "iced_native",
  "image",
  "kamadak-exif",
  "path-slash",

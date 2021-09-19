@@ -4,7 +4,7 @@ use rusqlite::{params, Connection as DbConnection, OptionalExtension};
 
 fn main() -> iced::Result {
     println!("Hello view");
-    println!("{}", backer::widgets::gallery::hello());
+    let _ = backer::widgets::gallery::Gallery::new();
 
     // TODO[LATER]: see if IPFS can be reused from: https://github.com/FuzzrNet/Fuzzr
 
