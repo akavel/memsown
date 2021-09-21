@@ -38,16 +38,18 @@ impl iced::Sandbox for Gallery {
         // FIXME: Milestone: add date headers
         // FIXME: Milestone: detect click
         // FIXME: Milestone: add preview window on click
-        let thumb = self.db.query_row(
-            "SELECT thumbnail FROM file LIMIT 1",
-            [],
-            |row| row.get(0),
-        ).optional().unwrap();
+        // let thumb = self.db.query_row(
+        //     "SELECT thumbnail FROM file LIMIT 1",
+        //     [],
+        //     |row| row.get(0),
+        // ).optional().unwrap();
 
-        use iced::{Text, Image, image::Handle};
-        match thumb {
-            None => Text::new("No thumbnails found in DB").into(),
-            Some(img) => Image::new(Handle::from_memory(img)).into(),
-        }
+        // backer::widgets::gallery::Gallery::new()
+        backer::widgets::gallery::Gallery::new().into()
+        // use iced::{Text, Image, image::Handle};
+        // match thumb {
+        //     None => Text::new("No thumbnails found in DB").into(),
+        //     Some(img) => Image::new(Handle::from_memory(img)).into(),
+        // }
     }
 }
