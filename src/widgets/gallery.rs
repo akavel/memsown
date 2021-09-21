@@ -797,11 +797,11 @@ where B: Backend,
         // (Primitive::Svg { handle: line, bounds: *viewport }, mouse::Interaction::default())
         (
             Primitive::Quad {
-                bounds: layout.bounds(),
+                bounds: *viewport,
                 // background: Background::Color(Color::BLACK),
                 background: Background::Color(Color::from_rgb(0.,0.5,0.)),
                 // border_radius: self.radius,
-                border_radius: layout.bounds().width/2.0,
+                border_radius: viewport.width/2.0,
                 border_width: 0.0,
                 border_color: Color::TRANSPARENT,
             },
