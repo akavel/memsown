@@ -83,7 +83,7 @@ fn main() -> Result<()> {
         let mut thumb_jpeg = Vec::<u8>::new();
         thumb.write_to(&mut thumb_jpeg, image::ImageOutputFormat::Jpeg(25))?;
 
-        let info = FileInfo{
+        let info = backer::model::FileInfo{
             hash: hash.clone(),
             date: date,
             thumb: thumb_jpeg,
@@ -145,13 +145,7 @@ fn db_exists(db: &DbConnection, marker: &str, relative: &str) -> ::rusqlite::Res
     )
 }
 
-struct FileInfo {
-    hash: String,
-    date: Option<NaiveDateTime>,
-    thumb: Vec<u8>,
-}
-
-fn db_upsert(db: &DbConnection, marker: &str, relative: &str, info: &FileInfo) -> Result<()> {
+fn db_upsert(db: &DbConnection, marker: &str, relative: &str, info: &backer::model::FileInfo) -> Result<()> {
     db.execute("
         INSERT INTO file(hash,date,thumbnail) VALUES(?,?,?)
           ON CONFLICT(hash) DO UPDATE SET

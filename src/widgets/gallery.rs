@@ -1,17 +1,21 @@
-use iced_graphics::{Backend, Background, Color, Primitive, Renderer};
+use std::sync::{Arc, Mutex};
+
+use iced_graphics::{Backend, Primitive, Renderer};
 use iced_native::{
     layout, mouse,
     Layout, Length, Point, Size, Widget,
 };
+use rusqlite::params;
+
 
 pub struct Gallery {
     // NOTE: when modifying, make sure to adjust Widget::hash_layout() if needed
-    tmp_img: iced_native::image::Handle,
+    db_connection: Arc<Mutex<rusqlite::Connection>>,
 }
 
 impl Gallery {
-    pub fn new(tmp_img: iced_native::image::Handle) -> Self {
-        Self { tmp_img }
+    pub fn new(db: Arc<Mutex<rusqlite::Connection>>) -> Self {
+        Self { db_connection: db }
     }
 }
 
@@ -59,19 +63,51 @@ where B: Backend,
         //          same coordinate system as layout.bounds(), not relative to them?
         //  hecrj: Yes, same system.
 
+        // TODO[LATER]: make parametrizable
+        let (tile_w, tile_h) = (200.0, 200.0);
+        let spacing = 25.0;
+
+        let db = self.db_connection.lock().unwrap();
+
+        // TODO[LATER]: think whether to remove .unwrap()
+        let mut q = db.prepare_cached(r"
+            SELECT hash, date, thumbnail
+                FROM file
+                ORDER BY date
+                LIMIT ? OFFSET ?").unwrap();
+        let file_iter = q.query_map(
+            params!(100, 0),
+            |row| Ok(crate::model::FileInfo {
+                hash: row.get_unwrap(0),
+                date: row.get_unwrap(1),
+                thumb: row.get_unwrap(2),
+            })).unwrap();
+
         println!("{:?} {:?}", layout.bounds(), &viewport);
 
+        let mut view = vec![];
+        let (mut x, mut y) = (spacing, spacing);
+        for row in file_iter {
+            view.push(Primitive::Image {
+                handle: iced_native::image::Handle::from_memory(row.unwrap().thumb),
+                // FIXME: parse jpeg to extract aspect ratio and include it in bounds below
+                bounds: iced_graphics::Rectangle{
+                    x, y, width: tile_w, height: tile_h,
+                },
+            });
+            x += tile_w + spacing;
+            if x + tile_w > viewport.width {
+                x = spacing;
+                y += tile_h + spacing;
+                if y >= viewport.height {
+                    break;
+                }
+            }
+        }
+
+
         (
-            Primitive::Image { handle: self.tmp_img.clone(), bounds: *viewport },
-            // Primitive::Quad {
-            //     bounds: *viewport,
-            //     // background: Background::Color(Color::BLACK),
-            //     background: Background::Color(Color::from_rgb(0.,0.5,0.)),
-            //     // border_radius: self.radius,
-            //     border_radius: viewport.width/2.0,
-            //     border_width: 0.0,
-            //     border_color: Color::TRANSPARENT,
-            // },
+            Primitive::Group { primitives: view },
             mouse::Interaction::default(),
         )
     }
