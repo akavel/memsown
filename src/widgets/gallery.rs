@@ -6,11 +6,12 @@ use iced_native::{
 
 pub struct Gallery {
     // NOTE: when modifying, make sure to adjust Widget::hash_layout() if needed
+    tmp_img: iced_native::image::Handle,
 }
 
 impl Gallery {
-    pub fn new() -> Self {
-        Self { }
+    pub fn new(tmp_img: iced_native::image::Handle) -> Self {
+        Self { tmp_img }
     }
 }
 
@@ -61,15 +62,16 @@ where B: Backend,
         println!("{:?} {:?}", layout.bounds(), &viewport);
 
         (
-            Primitive::Quad {
-                bounds: *viewport,
-                // background: Background::Color(Color::BLACK),
-                background: Background::Color(Color::from_rgb(0.,0.5,0.)),
-                // border_radius: self.radius,
-                border_radius: viewport.width/2.0,
-                border_width: 0.0,
-                border_color: Color::TRANSPARENT,
-            },
+            Primitive::Image { handle: self.tmp_img.clone(), bounds: *viewport },
+            // Primitive::Quad {
+            //     bounds: *viewport,
+            //     // background: Background::Color(Color::BLACK),
+            //     background: Background::Color(Color::from_rgb(0.,0.5,0.)),
+            //     // border_radius: self.radius,
+            //     border_radius: viewport.width/2.0,
+            //     border_width: 0.0,
+            //     border_color: Color::TRANSPARENT,
+            // },
             mouse::Interaction::default(),
         )
     }
