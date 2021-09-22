@@ -5,6 +5,7 @@ use iced_native::{
     layout, mouse,
     Layout, Length, Point, Size, Widget,
 };
+use image::ImageDecoder;
 use rusqlite::params;
 
 
@@ -88,13 +89,25 @@ where B: Backend,
         let mut view = vec![];
         let (mut x, mut y) = (spacing, spacing);
         for row in file_iter {
+            let file = row.unwrap();
+            // Extract dimensions of thumbnail
+            let (w, h) = match image::jpeg::JpegDecoder::new(std::io::Cursor::new(&file.thumb)).unwrap().dimensions() {
+                (w, h) => (w as f32, h as f32)
+            };
+            // Calculate scale, keeping aspect ratio
+            let scale = (1 as f32).min((w / tile_w).max(h / tile_h));
+            // Calculate alignment so that the thumbnail is centered in its space
+            let align_x = (tile_w - w/scale) / 2.0;
+            let align_y = (tile_h - h/scale) / 2.0;
+
             view.push(Primitive::Image {
-                handle: iced_native::image::Handle::from_memory(row.unwrap().thumb),
-                // FIXME: parse jpeg to extract aspect ratio and include it in bounds below
+                handle: iced_native::image::Handle::from_memory(file.thumb),
                 bounds: iced_graphics::Rectangle{
-                    x, y, width: tile_w, height: tile_h,
+                    x: x+align_x, y: y+align_y,
+                    width: w, height: h,
                 },
             });
+
             x += tile_w + spacing;
             if x + tile_w > viewport.width {
                 x = spacing;
