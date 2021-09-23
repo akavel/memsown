@@ -36,6 +36,7 @@ where B: Backend,
         _: &Renderer<B>,
         limits: &layout::Limits,
     ) -> layout::Node {
+        println!("MCDBG limits: {:?}", limits);
         // Note(akavel): not 100% sure what I'm doing here yet; general idea based off:
         // https://github.com/iced-rs/iced/blob/f78108a514563411e617715443bba53f4f4610ec/examples/geometry/src/main.rs#L47-L49
         // TODO(akavel): see what happens if I use bigger Size in resolve()
