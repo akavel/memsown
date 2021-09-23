@@ -4,6 +4,9 @@ use anyhow::Result;
 use iced::Sandbox;
 use rusqlite::Connection as DbConnection;
 
+use backer::widgets::gallery::Gallery;
+
+
 fn main() -> iced::Result {
     println!("Hello view");
 
@@ -34,19 +37,11 @@ impl iced::Sandbox for Gallery {
     }
 
     fn view(&mut self) -> iced::Element<Self::Message> {
-        // FIXME: Milestone: show n=15 images in grid
         // FIXME: Milestone: wrap in scrollable
         // FIXME: Milestone: add date headers
         // FIXME: Milestone: detect click
         // FIXME: Milestone: add preview window on click
 
-        // backer::widgets::gallery::Gallery::new()
-        // backer::widgets::gallery::Gallery::new().into()
-        backer::widgets::gallery::Gallery::new(Arc::clone(&self.db)).into()
-        // use iced::{Text, Image, image::Handle};
-        // match thumb {
-        //     None => Text::new("No thumbnails found in DB").into(),
-        //     Some(img) => Image::new(Handle::from_memory(img)).into(),
-        // }
+        Gallery::new(Arc::clone(&self.db)).into()
     }
 }
