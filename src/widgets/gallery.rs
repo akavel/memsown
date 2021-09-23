@@ -39,6 +39,7 @@ where B: Backend,
         // Note(akavel): not 100% sure what I'm doing here yet; general idea based off:
         // https://github.com/iced-rs/iced/blob/f78108a514563411e617715443bba53f4f4610ec/examples/geometry/src/main.rs#L47-L49
         // TODO(akavel): see what happens if I use bigger Size in resolve()
+        // FIXME: try somehow returning "suggested" height calculated based on SQL `SELECT COUNT(*) FROM FILES`
         let size = limits.width(Length::Fill).height(Length::Fill).resolve(Size::ZERO);
         layout::Node::new(size)
     }
@@ -70,6 +71,7 @@ where B: Backend,
 
         let db = self.db_connection.lock().unwrap();
 
+        // FIXME: calculate LIMIT & OFFSET based on viewport vs. layout.bounds
         // TODO[LATER]: think whether to remove .unwrap()
         let mut q = db.prepare_cached(r"
             SELECT hash, date, thumbnail
@@ -119,6 +121,7 @@ where B: Backend,
         }
 
 
+        // TODO[LATER]: show text message if no thumbnails in DB
         (
             Primitive::Group { primitives: view },
             mouse::Interaction::default(),

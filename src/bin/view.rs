@@ -42,6 +42,7 @@ impl iced::Sandbox for Gallery {
         // FIXME: Milestone: detect click
         // FIXME: Milestone: add preview window on click
 
+        // FIXME: wrap in scrollable
         Gallery::new(Arc::clone(&self.db)).into()
     }
 }
