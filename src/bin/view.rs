@@ -4,8 +4,6 @@ use anyhow::Result;
 use iced::Sandbox;
 use rusqlite::Connection as DbConnection;
 
-use backer::widgets::gallery::Gallery;
-
 
 fn main() -> iced::Result {
     println!("Hello view");
@@ -43,6 +41,6 @@ impl iced::Sandbox for Gallery {
         // FIXME: Milestone: add preview window on click
 
         // FIXME: wrap in scrollable
-        Gallery::new(Arc::clone(&self.db)).into()
+        backer::widgets::gallery::Gallery::new(Arc::clone(&self.db)).into()
     }
 }
