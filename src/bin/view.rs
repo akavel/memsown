@@ -40,7 +40,6 @@ impl iced::Sandbox for Gallery {
     }
 
     fn view(&mut self) -> iced::Element<Self::Message> {
-        // FIXME: Milestone: wrap in scrollable
         // FIXME: Milestone: add date headers
         // FIXME: Milestone: detect click
         // FIXME: Milestone: add preview window on click

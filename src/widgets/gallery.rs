@@ -78,8 +78,6 @@ where B: Backend,
         _cursor: Point,
         viewport: &iced_graphics::Rectangle,
     ) -> (Primitive, mouse::Interaction) {
-        // TODO(akavel): try looking into Column (in iced_wgpu?) to understand viewport? [via Zuris@discord]
-
         // TODO(akavel): contribute below explanation to iced_native::Widget docs
         // Note(akavel): from discord discussion:
         //  hecrj: viewport is the visible area of the layout bounds.
@@ -91,6 +89,12 @@ where B: Backend,
         //          same coordinate system as layout.bounds(), not relative to them?
         //  hecrj: Yes, same system.
 
+        let columns = ((layout.bounds().width - self.spacing) / (self.tile_w + self.spacing)) as u32;
+
+        // Index of first thumbnail to draw in top-left corner
+        let offset = columns * ((viewport.y - self.spacing) / (self.tile_h + self.spacing)) as u32;
+        let limit = (2 + (viewport.height / (self.tile_h + self.spacing)) as u32) * columns;
+
         let db = self.db.lock().unwrap();
 
         // FIXME: calculate LIMIT & OFFSET based on viewport vs. layout.bounds
@@ -101,17 +105,18 @@ where B: Backend,
                 ORDER BY date
                 LIMIT ? OFFSET ?").unwrap();
         let file_iter = q.query_map(
-            params!(100, 0),
+            params!(limit, offset),
             |row| Ok(crate::model::FileInfo {
                 hash: row.get_unwrap(0),
                 date: row.get_unwrap(1),
                 thumb: row.get_unwrap(2),
             })).unwrap();
 
-        println!("{:?} {:?}", layout.bounds(), &viewport);
+        // println!("{:?} {:?}", layout.bounds(), &viewport);
 
         let mut view = vec![];
-        let (mut x, mut y) = (self.spacing, self.spacing);
+        let mut x = self.spacing;
+        let mut y = self.spacing + (offset / columns) as f32 * (self.tile_h + self.spacing);
         for row in file_iter {
             let file = row.unwrap();
             // Extract dimensions of thumbnail
@@ -136,7 +141,7 @@ where B: Backend,
             if x + self.tile_w > viewport.width {
                 x = self.spacing;
                 y += self.tile_h + self.spacing;
-                if y >= viewport.height {
+                if y >= viewport.y + viewport.height {
                     break;
                 }
             }
