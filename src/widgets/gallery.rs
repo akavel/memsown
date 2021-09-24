@@ -11,12 +11,12 @@ use rusqlite::params;
 
 pub struct Gallery {
     // NOTE: when modifying, make sure to adjust Widget::hash_layout() if needed
-    db_connection: Arc<Mutex<rusqlite::Connection>>,
+    db: Arc<Mutex<rusqlite::Connection>>,
 }
 
 impl Gallery {
     pub fn new(db: Arc<Mutex<rusqlite::Connection>>) -> Self {
-        Self { db_connection: db }
+        Self { db }
     }
 }
 
@@ -70,7 +70,7 @@ where B: Backend,
         let (tile_w, tile_h) = (200.0, 200.0);
         let spacing = 25.0;
 
-        let db = self.db_connection.lock().unwrap();
+        let db = self.db.lock().unwrap();
 
         // FIXME: calculate LIMIT & OFFSET based on viewport vs. layout.bounds
         // TODO[LATER]: think whether to remove .unwrap()

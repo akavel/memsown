@@ -15,6 +15,9 @@ fn main() -> iced::Result {
 
 struct Gallery {
     db: Arc<Mutex<DbConnection>>,
+
+    // States of sub-widgets
+    scrollable: iced::widget::scrollable::State,
 }
 
 impl iced::Sandbox for Gallery {
@@ -23,6 +26,8 @@ impl iced::Sandbox for Gallery {
     fn new() -> Gallery {
         Gallery{
             db: Arc::new(Mutex::new(DbConnection::open("backer.db").unwrap())),
+
+            scrollable: iced::widget::scrollable::State::new(),
         }
     }
 
@@ -40,7 +45,9 @@ impl iced::Sandbox for Gallery {
         // FIXME: Milestone: detect click
         // FIXME: Milestone: add preview window on click
 
-        // FIXME: wrap in scrollable
-        backer::widgets::gallery::Gallery::new(Arc::clone(&self.db)).into()
+        iced::widget::scrollable::Scrollable::new(&mut self.scrollable)
+            .push(
+                backer::widgets::gallery::Gallery::new(Arc::clone(&self.db))
+            ).into()
     }
 }
