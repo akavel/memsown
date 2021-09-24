@@ -35,6 +35,7 @@ fn main() -> Result<()> {
     println!("marker {}", &marker);
 
     // Stage 1: add not-yet-known files into DB
+    // TODO[LATER]: in parallel thread, count all matching files, then when done start showing progress bar/percentage
     let images = GlobWalkerBuilder::new(&root, "*.{jpg,jpeg}")
         .case_insensitive(true)
         .file_type(globwalk::FileType::FILE)
@@ -52,22 +53,18 @@ fn main() -> Result<()> {
             continue;
         }
 
-
         // Calculate sha1 hash of the file contents.
         // TODO[LATER]: maybe switch to a secure hash (sha2 or other, see: https://github.com/RustCrypto/hashes)
         let hash = format!("{:x}", Sha1::digest(&buf));
 
         // Does the JPEG have Exif block? We assume it'd be the most reliable source of metadata.
         let exif = ExifReader::new().read_from_container(&mut Cursor::new(&buf)).ok();
-        // TODO[LATER]: use some orientation enum / stricter type instead of raw u16
-        // TODO[LATER]: test exif deorienting with cases from: https://github.com/recurser/exif-orientation-examples
-        // (see also: https://www.daveperrett.com/articles/2012/07/28/exif-orientation-handling-is-a-ghetto)
-        let orientation = exif.as_ref().and_then(exif_orientation).unwrap_or(1);
         let date = try_deduce_date(exif.as_ref(), &relative);
+        // // TODO[LATER]: use some orientation enum / stricter type instead of raw u16
+        // // TODO[LATER]: test exif deorienting with cases from: https://github.com/recurser/exif-orientation-examples
+        // // (see also: https://www.daveperrett.com/articles/2012/07/28/exif-orientation-handling-is-a-ghetto)
+        // let orientation = exif.as_ref().and_then(exif_orientation).unwrap_or(1);
 
-    // FIXME:    - create 200x200 thumbnail
-    // FIXME:       - lanczos resizing
-    // FIXME:       - deoriented
         let img = match ImageReader::new(Cursor::new(&buf)).with_guessed_format()?.decode() {
             Ok(img) => img,
             Err(err) => {
@@ -76,12 +73,11 @@ fn main() -> Result<()> {
                 continue;
             }
         };
-        // let img = ImageReader::new(Cursor::new(&buf)).with_guessed_format()?.decode()
-        //     .with_context(|| format!("Failed to decode JPEG {:?}", &path))?;
         // let thumb = img.resize(200, 200, FilterType::Lanczos3);
         let thumb = img.resize(200, 200, FilterType::CatmullRom);
+        // FIXME[LATER]: fix the thumbnail's orientation
         let mut thumb_jpeg = Vec::<u8>::new();
-        thumb.write_to(&mut thumb_jpeg, image::ImageOutputFormat::Jpeg(25))?;
+        thumb.write_to(&mut thumb_jpeg, image::ImageOutputFormat::Jpeg(90))?;
 
         let info = backer::model::FileInfo{
             hash: hash.clone(),
@@ -95,7 +91,9 @@ fn main() -> Result<()> {
         // println!("{} {} {:?} {:?}", &hash, path.display(), date.map(|d| d.to_string()), orientation);
     }
 
-    // FIXME: Stage 2: scan all files once more and refresh them in DB
+    // FIXME: Stage 2: check if all files from DB are present on disk, delete entries for any missing
+
+    // FIXME: Stage 3: scan all files once more and refresh them in DB
 
     Ok(())
 }
@@ -196,13 +194,13 @@ fn exif_date_from(exif: &Exif, tag: ::exif::Tag) -> Option<::exif::DateTime> {
     }
 }
 
-// TODO: for meaning, see: https://magnushoff.com/articles/jpeg-orientation/
-fn exif_orientation(exif: &Exif) -> Option<u16> {
-    use exif::{Field, In, Tag, Value};
+// // TODO: for meaning, see: https://magnushoff.com/articles/jpeg-orientation/
+// fn exif_orientation(exif: &Exif) -> Option<u16> {
+//     use exif::{Field, In, Tag, Value};
 
-    match exif.get_field(Tag::Orientation, In::PRIMARY) {
-        Some(Field{value: Value::Short(ref vec), ..})
-            if !vec.is_empty() => Some(vec[0]),
-        _ => None
-    }
-}
+//     match exif.get_field(Tag::Orientation, In::PRIMARY) {
+//         Some(Field{value: Value::Short(ref vec), ..})
+//             if !vec.is_empty() => Some(vec[0]),
+//         _ => None
+//     }
+// }

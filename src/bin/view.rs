@@ -43,6 +43,7 @@ impl iced::Sandbox for Gallery {
         // FIXME: Milestone: add date headers
         // FIXME: Milestone: detect click
         // FIXME: Milestone: add preview window on click
+        // FIXME: Milestone: show some info about where img is present
 
         iced::widget::scrollable::Scrollable::new(&mut self.scrollable)
             .push(
