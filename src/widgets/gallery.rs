@@ -1,6 +1,8 @@
 use std::sync::{Arc, Mutex};
 
-use iced_graphics::{Backend, Primitive, Renderer};
+use iced_graphics::{
+    Backend, Color, Primitive, Rectangle, Renderer,
+};
 use iced_native::{
     layout, mouse,
     Layout, Length, Point, Size, Widget,
@@ -114,11 +116,13 @@ where B: Backend,
 
         // println!("{:?} {:?}", layout.bounds(), &viewport);
 
+        let mut last_date = String::new();
         let mut view = vec![];
         let mut x = self.spacing;
         let mut y = self.spacing + (offset / columns) as f32 * (self.tile_h + self.spacing);
         for row in file_iter {
             let file = row.unwrap();
+
             // Extract dimensions of thumbnail
             let (w, h) = match image::jpeg::JpegDecoder::new(std::io::Cursor::new(&file.thumb)).unwrap().dimensions() {
                 (w, h) => (w as f32, h as f32)
@@ -131,12 +135,37 @@ where B: Backend,
 
             view.push(Primitive::Image {
                 handle: iced_native::image::Handle::from_memory(file.thumb),
-                bounds: iced_graphics::Rectangle{
+                bounds: Rectangle {
                     x: x+align_x, y: y+align_y,
                     width: w, height: h,
                 },
             });
 
+            // Display date header if necessary
+            // TODO[LATER]: start 1 row earlier to make sure date is not displayed too greedily
+            let date = match file.date {
+                Some(d) => d.format("%Y-%m-%d").to_string(),
+                None => "Unknown date".to_owned(),
+            };
+            if date != last_date {
+                last_date = date;
+                view.push(Primitive::Text {
+                    content: last_date.clone(),
+                    bounds: Rectangle {
+                        x: x - 5.0,
+                        y: y - self.spacing + 5.0,
+                        width: self.tile_w,
+                        height: self.spacing - 5.0,
+                    },
+                    color: Color::BLACK,
+                    size: 20.0,
+                    font: iced_graphics::Font::Default,
+                    horizontal_alignment: iced_graphics::HorizontalAlignment::Left,
+                    vertical_alignment: iced_graphics::VerticalAlignment::Top,
+                });
+            }
+
+            // Calculate x and y for next image
             x += self.tile_w + self.spacing;
             if x + self.tile_w > viewport.width {
                 x = self.spacing;

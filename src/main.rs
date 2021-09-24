@@ -69,6 +69,7 @@ fn main() -> Result<()> {
             Ok(img) => img,
             Err(err) => {
                 // TODO[LATER]: use termcolor crate to print errors in red
+                // FIXME[LATER]: resolve JPEG decoding error: "spectral selection is not allowed in non-progressive scan"
                 eprintln!("\nFailed to decode JPEG {:?}, skipping: {}", &path, err);
                 continue;
             }
