@@ -12,11 +12,19 @@ use rusqlite::params;
 pub struct Gallery {
     // NOTE: when modifying, make sure to adjust Widget::hash_layout() if needed
     db: Arc<Mutex<rusqlite::Connection>>,
+    tile_w: f32,
+    tile_h: f32,
+    spacing: f32,
 }
 
 impl Gallery {
     pub fn new(db: Arc<Mutex<rusqlite::Connection>>) -> Self {
-        Self { db }
+        Self {
+            db,
+            tile_w: 200.0,
+            tile_h: 200.0,
+            spacing: 25.0,
+        }
     }
 }
 
@@ -27,8 +35,16 @@ where B: Backend,
 
     fn height(&self) -> Length { Length::Fill }
 
-    fn hash_layout(&self, _: &mut iced_native::Hasher) {
-        // TODO(akavel): if needed, fill in as appropriate once some internal state is added
+    fn hash_layout(&self, hasher: &mut iced_native::Hasher) {
+        use std::hash::Hash;
+
+        let db = self.db.lock().unwrap();
+        let n_files: i32 = db.query_row(
+            "SELECT COUNT(*) FROM file", [],
+            |row| row.get(0)).unwrap();
+        drop(db);
+
+        n_files.hash(hasher);
     }
 
     fn layout(
@@ -36,13 +52,22 @@ where B: Backend,
         _: &Renderer<B>,
         limits: &layout::Limits,
     ) -> layout::Node {
-        println!("MCDBG limits: {:?}", limits);
-        // Note(akavel): not 100% sure what I'm doing here yet; general idea based off:
-        // https://github.com/iced-rs/iced/blob/f78108a514563411e617715443bba53f4f4610ec/examples/geometry/src/main.rs#L47-L49
-        // TODO(akavel): see what happens if I use bigger Size in resolve()
-        // FIXME: try somehow returning "suggested" height calculated based on SQL `SELECT COUNT(*) FROM FILES`
-        let size = limits.width(Length::Fill).height(Length::Fill).resolve(Size::ZERO);
-        layout::Node::new(size)
+        // println!("MCDBG limits: {:?}", limits);
+
+        let db = self.db.lock().unwrap();
+        let n_files: u32 = db.query_row(
+            "SELECT COUNT(*) FROM file", [],
+            |row| row.get(0)).unwrap();
+        drop(db);
+
+        let columns = ((limits.max().width - self.spacing) / (self.tile_w + self.spacing)) as u32;
+        let rows: u32 = (n_files + columns - 1) / columns;
+
+        let height = (self.spacing as u32) + rows * (self.tile_h + self.spacing) as u32;
+        // println!("MCDBG n={} x={} y={} h={}", n_files, columns, rows, height);
+        layout::Node::new(Size::new(
+            limits.max().width,
+            height as f32))
     }
 
     fn draw(
@@ -66,10 +91,6 @@ where B: Backend,
         //          same coordinate system as layout.bounds(), not relative to them?
         //  hecrj: Yes, same system.
 
-        // TODO[LATER]: make parametrizable
-        let (tile_w, tile_h) = (200.0, 200.0);
-        let spacing = 25.0;
-
         let db = self.db.lock().unwrap();
 
         // FIXME: calculate LIMIT & OFFSET based on viewport vs. layout.bounds
@@ -90,7 +111,7 @@ where B: Backend,
         println!("{:?} {:?}", layout.bounds(), &viewport);
 
         let mut view = vec![];
-        let (mut x, mut y) = (spacing, spacing);
+        let (mut x, mut y) = (self.spacing, self.spacing);
         for row in file_iter {
             let file = row.unwrap();
             // Extract dimensions of thumbnail
@@ -98,10 +119,10 @@ where B: Backend,
                 (w, h) => (w as f32, h as f32)
             };
             // Calculate scale, keeping aspect ratio
-            let scale = (1 as f32).min((w / tile_w).max(h / tile_h));
+            let scale = (1 as f32).min((w / self.tile_w).max(h / self.tile_h));
             // Calculate alignment so that the thumbnail is centered in its space
-            let align_x = (tile_w - w/scale) / 2.0;
-            let align_y = (tile_h - h/scale) / 2.0;
+            let align_x = (self.tile_w - w/scale) / 2.0;
+            let align_y = (self.tile_h - h/scale) / 2.0;
 
             view.push(Primitive::Image {
                 handle: iced_native::image::Handle::from_memory(file.thumb),
@@ -111,10 +132,10 @@ where B: Backend,
                 },
             });
 
-            x += tile_w + spacing;
-            if x + tile_w > viewport.width {
-                x = spacing;
-                y += tile_h + spacing;
+            x += self.tile_w + self.spacing;
+            if x + self.tile_w > viewport.width {
+                x = self.spacing;
+                y += self.tile_h + self.spacing;
                 if y >= viewport.height {
                     break;
                 }
