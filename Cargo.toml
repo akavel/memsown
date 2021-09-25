@@ -20,3 +20,4 @@ sha-1 = "0.9"
 # Required for defining custom widgets
 iced_native = "0.4.0"
 iced_graphics = "0.2.0"
+if_chain = "1.0.2"

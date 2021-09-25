@@ -8,6 +8,7 @@ use anyhow::{anyhow, Context, Result};
 use chrono::naive::{NaiveDate, NaiveDateTime};
 use exif::{Exif, Reader as ExifReader};
 use globwalk::GlobWalkerBuilder;
+use if_chain::if_chain;
 use image::imageops::FilterType;
 use image::io::Reader as ImageReader;
 use path_slash::PathExt;
@@ -47,17 +48,17 @@ fn main() -> Result<()> {
 
 // TODO[LATER]: accept Path (or Into<Path>/From<Path>)
 fn process_tree(i: usize, marker_path: &str, db: Arc<RwLock<DbConnection>>) -> Result<()> {
-    let (root, marker) = match marker_read(&marker_path) {
-        Ok(m) => Ok(m),
-        Err(err) => {
-            if let Some(cause) = err.downcast_ref::<std::io::Error>() {
-                if cause.kind() == std::io::ErrorKind::NotFound {
-                    println!("\nSkipping tree at '{}': {}", marker_path, error_chain(&err));
-                    return Ok(());
-                }
-            }
-            Err(err)
-        },
+    let (root, marker) = if_chain! {
+        let m = marker_read(&marker_path);
+        if let Err(ref err) = m;
+        if let Some(cause) = err.downcast_ref::<io::Error>();
+        if cause.kind() == io::ErrorKind::NotFound;
+        then {
+            println!("\nSkipping tree at '{}': {}", marker_path, error_chain(&err));
+            return Ok(());
+        } else {
+            m
+        }
     }?;
     println!("marker {} at: {}", &marker, root.display());
 
@@ -149,7 +150,7 @@ fn marker_read(file_path: &str) -> Result<(PathBuf, String)> {
     }
     let file = File::open(file_path)
         .with_context(|| format!("Failed to open '{}'", file_path.display()))?;
-    let m: Marker = serde_json::from_reader(std::io::BufReader::new(file))?;
+    let m: Marker = serde_json::from_reader(io::BufReader::new(file))?;
 
     Ok((parent.to_owned(), m.id))
 }
