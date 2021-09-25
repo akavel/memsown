@@ -17,8 +17,7 @@ impl ExifExt for Exif {
         use exif::{Field, In, Value};
 
         if_chain! {
-            if let Some(field) = self.get_field(tag, In::PRIMARY);
-            if let Field { value: Value::Ascii(ref vec), .. } = field;
+            if let Some(Field { value: Value::Ascii(ref vec), .. }) = self.get_field(tag, In::PRIMARY);
             if !vec.is_empty();
             then {
                 ExifDateTime::from_ascii(&vec[0]).ok()
@@ -33,8 +32,7 @@ impl ExifExt for Exif {
 
         let tag = Tag::Orientation;
         if_chain! {
-            if let Some(field) = self.get_field(tag, In::PRIMARY);
-            if let Field { value: Value::Short(ref vec), .. } = field;
+            if let Some(Field { value: Value::Short(ref vec), .. }) = self.get_field(tag, In::PRIMARY);
             if !vec.is_empty();
             then {
                 Some(vec[0])

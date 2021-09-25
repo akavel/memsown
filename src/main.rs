@@ -55,12 +55,12 @@ fn main() -> Result<()> {
 // TODO[LATER]: accept Path (or Into<Path>/From<Path>)
 fn process_tree(i: usize, marker_path: &str, db: Arc<Mutex<DbConnection>>) -> Result<()> {
     let (root, marker) = if_chain! {
-        let m = marker_read(&marker_path);
+        let m = marker_read(marker_path);
         if let Err(ref err) = m;
         if let Some(cause) = err.downcast_ref::<io::Error>();
         if cause.kind() == io::ErrorKind::NotFound;
         then {
-            println!("\nSkipping tree at '{}': {}", marker_path, error_chain(&err));
+            println!("\nSkipping tree at '{}': {}", marker_path, error_chain(err));
             return Ok(());
         } else {
             m
