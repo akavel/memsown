@@ -30,7 +30,6 @@ fn main() -> Result<()> {
         r"c:\fotki\backer-id.json",
     ];
 
-    // FIXME: Milestone: read from multiple marker roots in parallel
     // TODO[LATER]: consider using 'rayon' lib for prettier parallelism
     let mut threads = vec![];
     for (i, marker) in marker_paths.iter().enumerate() {
@@ -75,7 +74,13 @@ fn process_tree(i: usize, marker_path: &str, db: Arc<Mutex<DbConnection>>) -> Re
         .file_type(globwalk::FileType::FILE)
         .build();
     for entry in images? {
-        let path = entry?.path().to_owned();
+        let path = match entry {
+            Ok(entry) => entry.path().to_owned(),
+            Err(err) => {
+                eprintln!("\nFailed to access file, skipping: {}", err);
+                continue;
+            }
+        };
         let buf = read(&path)?;
 
         let os_relative = path.strip_prefix(&root)?;
