@@ -1,8 +1,8 @@
 use std::fs::{read, File};
 use std::io::{Cursor, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use chrono::naive::{NaiveDate, NaiveDateTime};
 use exif::{Exif, Reader as ExifReader};
 use globwalk::GlobWalkerBuilder;
@@ -20,20 +20,19 @@ fn main() -> Result<()> {
     let raw_stdout = std::io::stdout();
     let mut stdout = raw_stdout.lock();
 
+    // TODO[LATER]: use Arc<RwLock<T>> instead of Arc<Mutex<T>>
     let db = DbConnection::open("backer.db")?;
     db_init(&db)?;
 
-    // mdb = openDb("backer.db")
-    // let markers = @[
-    //   r"d:\backer-id.json",
-    //   r"c:\fotki\backer-id.json",
-    // ]
-
-    let root = r"c:\fotki";
+    // TODO[LATER]: load from JSON more or less: {"disk":["d:\\backer-id.json","c:\\fotki\\backer-id.json"],"ipfs":[...]}
+    let marker_paths = vec![
+        r"d:\backer-id.json".into(),
+        r"c:\fotki\backer-id.json".into(),
+    ];
 
     // FIXME: Milestone: read from multiple marker roots in parallel
-    let marker = marker_read(root)?;
-    println!("marker {}", &marker);
+    let (root, marker) = marker_read(marker_paths[1])?;
+    println!("marker {} at: {}", &marker, root.display());
 
     // Stage 1: add not-yet-known files into DB
     // TODO[LATER]: in parallel thread, count all matching files, then when done start showing progress bar/percentage
@@ -45,7 +44,7 @@ fn main() -> Result<()> {
         let path = entry?.path().to_owned();
         let buf = read(&path)?;
 
-        let os_relative = path.strip_prefix(root)?;
+        let os_relative = path.strip_prefix(&root)?;
         let relative = os_relative
             .to_slash()
             .with_context(|| format!("Failed to convert path {:?} to slash-based", os_relative))?;
@@ -106,17 +105,20 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn marker_read(dir: &str) -> Result<String> {
+// TODO[LATER]: accept Path and return Result<(Path,...)> with proper lifetime
+fn marker_read(file_path: &str) -> Result<(PathBuf, String)> {
+    let file_path = Path::new(file_path);
+    let parent = file_path.parent().ok_or_else(|| anyhow!("could not split parent directory of: {}", file_path.display()))?;
+
     use serde::Deserialize;
     #[derive(Deserialize)]
     struct Marker {
         id: String,
     }
+    let file = File::open(file_path)?;
+    let m: Marker = serde_json::from_reader(std::io::BufReader::new(file))?;
 
-    let file = File::open(Path::new(dir).join("backer-id.json"))?;
-    let reader = std::io::BufReader::new(file);
-    let m: Marker = serde_json::from_reader(reader)?;
-    Ok(m.id)
+    Ok((parent.to_owned(), m.id))
 }
 
 fn db_init(db: &DbConnection) -> ::rusqlite::Result<()> {

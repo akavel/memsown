@@ -13,6 +13,7 @@ fn main() -> iced::Result {
 }
 
 struct Gallery {
+    // TODO[LATER]: use Arc<RwLock<T>> instead of Arc<Mutex<T>>
     db: Arc<Mutex<DbConnection>>,
 
     // States of sub-widgets
