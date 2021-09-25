@@ -1,6 +1,5 @@
 use chrono::naive::{NaiveDate, NaiveDateTime};
-use exif::{DateTime as ExifDateTime, Exif, Tag};
-use if_chain::if_chain;
+use exif::{DateTime as ExifDateTime, Exif, Field, In, Tag, Value};
 
 pub trait ExifExt {
     fn datetime(&self, tag: Tag) -> Option<ExifDateTime>;
@@ -12,36 +11,36 @@ pub trait ExifExt {
     fn orientation(&self) -> Option<u16>;
 }
 
+/// Macro making retrieval of Exif fields less visually cluttered.
+macro_rules! exif_field {
+    ($exif:ident [ $tag:expr ] as $val:path { ref $v:tt } => $body:block) => {
+        // TODO: match &$exif ... ?
+        match $exif.get_field($tag, In::PRIMARY) {
+            Some(Field { value: $val(ref vec), .. }) if !vec.is_empty() => {
+                let $v = &vec[0];
+                $body
+            },
+            _ => None,
+        }
+    };
+}
+
 impl ExifExt for Exif {
     fn datetime(&self, tag: Tag) -> Option<ExifDateTime> {
-        use exif::{Field, In, Value};
-
-        if_chain! {
-            if let Some(Field { value: Value::Ascii(ref vec), .. }) = self.get_field(tag, In::PRIMARY);
-            if !vec.is_empty();
-            then {
-                ExifDateTime::from_ascii(&vec[0]).ok()
-            } else {
-                None
+        exif_field! {
+            self[tag] as Value::Ascii{ref v} => {
+                ExifDateTime::from_ascii(v).ok()
             }
         }
     }
 
     fn orientation(&self) -> Option<u16> {
-        use exif::{Field, In, Value};
-
-        let tag = Tag::Orientation;
-        if_chain! {
-            if let Some(Field { value: Value::Short(ref vec), .. }) = self.get_field(tag, In::PRIMARY);
-            if !vec.is_empty();
-            then {
-                Some(vec[0])
-            } else {
-                None
+        exif_field! {
+            self[Tag::Orientation] as Value::Short{ref v} => {
+                Some(*v)
             }
         }
     }
-
 }
 
 pub trait ExifDateTimeExt {
