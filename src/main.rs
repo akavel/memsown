@@ -108,7 +108,12 @@ fn main() -> Result<()> {
 // TODO[LATER]: accept Path and return Result<(Path,...)> with proper lifetime
 fn marker_read(file_path: &str) -> Result<(PathBuf, String)> {
     let file_path = Path::new(file_path);
-    let parent = file_path.parent().ok_or_else(|| anyhow!("could not split parent directory of: {}", file_path.display()))?;
+    let parent = file_path.parent().ok_or_else(|| {
+        anyhow!(
+            "could not split parent directory of: {}",
+            file_path.display()
+        )
+    })?;
 
     use serde::Deserialize;
     #[derive(Deserialize)]
