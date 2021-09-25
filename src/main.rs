@@ -230,11 +230,15 @@ fn try_deduce_date(exif: Option<&Exif>, relative_path: &str) -> Option<NaiveDate
     if let Some(exif) = exif {
         use exif::Tag;
         if let Some(d) = exif_date_from(exif, Tag::DateTime) {
-            return Some(exif_date_to_naive(&d));
+            if let Some(naive) = exif_date_to_naive(&d) {
+                return Some(naive);
+            }
         }
         // TODO[LATER]: does this field make sense?
         if let Some(d) = exif_date_from(exif, Tag::DateTimeOriginal) {
-            return Some(exif_date_to_naive(&d));
+            if let Some(naive) = exif_date_to_naive(&d) {
+                return Some(naive);
+            }
         }
         // TODO[LATER]: are ther other fields we could try?
     }
@@ -243,12 +247,13 @@ fn try_deduce_date(exif: Option<&Exif>, relative_path: &str) -> Option<NaiveDate
     None
 }
 
-fn exif_date_to_naive(d: &::exif::DateTime) -> NaiveDateTime {
-    NaiveDate::from_ymd(d.year.into(), d.month.into(), d.day.into()).and_hms(
-        d.hour.into(),
-        d.minute.into(),
-        d.second.into(),
-    )
+fn exif_date_to_naive(d: &::exif::DateTime) -> Option<NaiveDateTime> {
+    NaiveDate::from_ymd_opt(d.year.into(), d.month.into(), d.day.into())
+        .and_then(|date| date.and_hms_opt(
+            d.hour.into(),
+            d.minute.into(),
+            d.second.into(),
+        ))
 }
 
 fn exif_date_from(exif: &Exif, tag: ::exif::Tag) -> Option<::exif::DateTime> {
