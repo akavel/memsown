@@ -1,7 +1,7 @@
 use std::fs::{read, File};
 use std::io::{self, Cursor, Write};
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex};
 use std::thread;
 
 use anyhow::{anyhow, Context, Result};
@@ -20,10 +20,9 @@ fn main() -> Result<()> {
     // TODO[LATER]: run clippy on this repo
     println!("Hello, world!");
 
-    // TODO[LATER]: use Arc<RwLock<T>> instead of Arc<Mutex<T>>
     let db = DbConnection::open("backer.db")?;
     db_init(&db)?;
-    let db = Arc::new(RwLock::new(db));
+    let db = Arc::new(Mutex::new(db));
 
     // TODO[LATER]: load from JSON more or less: {"disk":["d:\\backer-id.json","c:\\fotki\\backer-id.json"],"ipfs":[...]}
     let marker_paths = vec![
@@ -33,9 +32,16 @@ fn main() -> Result<()> {
 
     // FIXME: Milestone: read from multiple marker roots in parallel
     // TODO[LATER]: consider using 'rayon' lib for prettier parallelism
-    // let mut threads = vec![];
+    let mut threads = vec![];
     for (i, marker) in marker_paths.iter().enumerate() {
-        process_tree(i, marker, db.clone())?;
+        let db = db.clone();
+        let marker = marker.to_owned();
+        threads.push(
+            thread::spawn(move || process_tree(i, marker, db).unwrap())
+        );
+    }
+    for t in threads {
+        t.join().unwrap();
     }
 
 
@@ -47,7 +53,7 @@ fn main() -> Result<()> {
 }
 
 // TODO[LATER]: accept Path (or Into<Path>/From<Path>)
-fn process_tree(i: usize, marker_path: &str, db: Arc<RwLock<DbConnection>>) -> Result<()> {
+fn process_tree(i: usize, marker_path: &str, db: Arc<Mutex<DbConnection>>) -> Result<()> {
     let (root, marker) = if_chain! {
         let m = marker_read(&marker_path);
         if let Err(ref err) = m;
@@ -76,7 +82,7 @@ fn process_tree(i: usize, marker_path: &str, db: Arc<RwLock<DbConnection>>) -> R
         let relative = os_relative
             .to_slash()
             .with_context(|| format!("Failed to convert path {:?} to slash-based", os_relative))?;
-        let db_read = db.read().unwrap();
+        let db_read = db.lock().unwrap();
         if db_exists(&db_read, &marker, &relative)? {
             print!(".");
             io::stdout().flush()?;
@@ -121,7 +127,7 @@ fn process_tree(i: usize, marker_path: &str, db: Arc<RwLock<DbConnection>>) -> R
             date,
             thumb: thumb_jpeg,
         };
-        let db_write = db.write().unwrap();
+        let db_write = db.lock().unwrap();
         db_upsert(&db_write, &marker, &relative, &info)?;
         drop(db_write);
 
