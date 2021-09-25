@@ -1,39 +1,59 @@
-use exif::{Exif, Tag};
 use chrono::naive::{NaiveDate, NaiveDateTime};
+use exif::{DateTime as ExifDateTime, Exif, Tag};
+use if_chain::if_chain;
 
 pub trait ExifExt {
-    fn try_timestamp<T>(&self, tags: T) -> Option<NaiveDateTime>
-        where T: IntoIterator<Item=Tag>;
+    fn datetime(&self, tag: Tag) -> Option<ExifDateTime>;
+
+    // TODO[LATER]: use some orientation enum / stricter type instead of raw u16
+    // for meaning, see: https://magnushoff.com/articles/jpeg-orientation/
+    // TODO[LATER]: test exif deorienting with cases from: https://github.com/recurser/exif-orientation-examples
+    // (see also: https://www.daveperrett.com/articles/2012/07/28/exif-orientation-handling-is-a-ghetto)
+    fn orientation(&self) -> Option<u16>;
 }
 
 impl ExifExt for Exif {
-    fn try_timestamp<T>(&self, tags: T) -> Option<NaiveDateTime>
-        where T: IntoIterator<Item=Tag>
-    {
-        for tag in tags {
-            if let Some(d) = exif_date_from(&self, tag) {
-                if let Some(naive) = exif_date_to_naive(&d) {
-                    return Some(naive);
-                }
+    fn datetime(&self, tag: Tag) -> Option<ExifDateTime> {
+        use exif::{Field, In, Value};
+
+        if_chain! {
+            if let Some(field) = self.get_field(tag, In::PRIMARY);
+            if let Field { value: Value::Ascii(ref vec), .. } = field;
+            if !vec.is_empty();
+            then {
+                ExifDateTime::from_ascii(&vec[0]).ok()
+            } else {
+                None
             }
         }
-        None
+    }
+
+    fn orientation(&self) -> Option<u16> {
+        use exif::{Field, In, Value};
+
+        let tag = Tag::Orientation;
+        if_chain! {
+            if let Some(field) = self.get_field(tag, In::PRIMARY);
+            if let Field { value: Value::Short(ref vec), .. } = field;
+            if !vec.is_empty();
+            then {
+                Some(vec[0])
+            } else {
+                None
+            }
+        }
+    }
+
+}
+
+pub trait ExifDateTimeExt {
+    fn to_naive_opt(&self) -> Option<NaiveDateTime>;
+}
+
+impl ExifDateTimeExt for ExifDateTime {
+    fn to_naive_opt(&self) -> Option<NaiveDateTime> {
+        NaiveDate::from_ymd_opt(self.year.into(), self.month.into(), self.day.into())
+            .and_then(|date| date.and_hms_opt(self.hour.into(), self.minute.into(), self.second.into()))
     }
 }
 
-fn exif_date_from(exif: &Exif, tag: Tag) -> Option<::exif::DateTime> {
-    use exif::{DateTime, Field, In, Value};
-
-    match exif.get_field(tag, In::PRIMARY) {
-        Some(Field {
-            value: Value::Ascii(ref vec),
-            ..
-        }) if !vec.is_empty() => DateTime::from_ascii(&vec[0]).ok(),
-        _ => None,
-    }
-}
-
-fn exif_date_to_naive(d: &::exif::DateTime) -> Option<NaiveDateTime> {
-    NaiveDate::from_ymd_opt(d.year.into(), d.month.into(), d.day.into())
-        .and_then(|date| date.and_hms_opt(d.hour.into(), d.minute.into(), d.second.into()))
-}

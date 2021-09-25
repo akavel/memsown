@@ -5,7 +5,7 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 
 use anyhow::{anyhow, Context, Result};
-use chrono::naive::{NaiveDate, NaiveDateTime};
+use chrono::naive::NaiveDateTime;
 use exif::{Exif, Reader as ExifReader};
 use globwalk::GlobWalkerBuilder;
 use if_chain::if_chain;
@@ -14,6 +14,9 @@ use image::io::Reader as ImageReader;
 use path_slash::PathExt;
 use rusqlite::{params, Connection as DbConnection};
 use sha1::{Digest, Sha1};
+
+use backer::imaging::*;
+
 
 fn main() -> Result<()> {
     // TODO[LATER]: run rustfmt on this repo
@@ -97,15 +100,15 @@ fn process_tree(i: usize, marker_path: &str, db: Arc<Mutex<DbConnection>>) -> Re
         // TODO[LATER]: maybe switch to a secure hash (sha2 or other, see: https://github.com/RustCrypto/hashes)
         let hash = format!("{:x}", Sha1::digest(&buf));
 
+        // FIXME: if image is very small, it's probably a thumbnail already and we don't want to archive it
+
         // Does the JPEG have Exif block? We assume it'd be the most reliable source of metadata.
         let exif = ExifReader::new()
             .read_from_container(&mut Cursor::new(&buf))
             .ok();
         let date = try_deduce_date(exif.as_ref(), &relative);
         // // TODO[LATER]: use some orientation enum / stricter type instead of raw u16
-        // // TODO[LATER]: test exif deorienting with cases from: https://github.com/recurser/exif-orientation-examples
-        // // (see also: https://www.daveperrett.com/articles/2012/07/28/exif-orientation-handling-is-a-ghetto)
-        // let orientation = exif.as_ref().and_then(exif_orientation).unwrap_or(1);
+        // let orientation = exif.as_ref().and_then(|v| v.orientation()).unwrap_or(1);
 
         let img = match ImageReader::new(Cursor::new(&buf))
             .with_guessed_format()?
@@ -231,48 +234,18 @@ fn db_upsert(
 fn try_deduce_date(exif: Option<&Exif>, relative_path: &str) -> Option<NaiveDateTime> {
     if let Some(exif) = exif {
         use exif::Tag;
-        if let Some(d) = exif_date_from(exif, Tag::DateTime) {
-            if let Some(naive) = exif_date_to_naive(&d) {
-                return Some(naive);
-            }
-        }
-        // TODO[LATER]: does this field make sense?
-        if let Some(d) = exif_date_from(exif, Tag::DateTimeOriginal) {
-            if let Some(naive) = exif_date_to_naive(&d) {
-                return Some(naive);
-            }
-        }
         // TODO[LATER]: are ther other fields we could try?
+        if let Some(d) = vec![Tag::DateTime, Tag::DateTimeOriginal]
+            .into_iter()
+            .filter_map(|tag| exif.datetime(tag))
+            .filter_map(|dt| dt.to_naive_opt())
+            .next()
+        {
+            return Some(d);
+        }
     }
     // TODO[LATER]: try extracting date from relative_path
     // TODO[LATER]: try extracting date from file's creation and modification date (NOTE: latter can be earlier than former on Windows!)
     None
 }
 
-fn exif_date_to_naive(d: &::exif::DateTime) -> Option<NaiveDateTime> {
-    NaiveDate::from_ymd_opt(d.year.into(), d.month.into(), d.day.into())
-        .and_then(|date| date.and_hms_opt(d.hour.into(), d.minute.into(), d.second.into()))
-}
-
-fn exif_date_from(exif: &Exif, tag: ::exif::Tag) -> Option<::exif::DateTime> {
-    use exif::{DateTime, Field, In, Value};
-
-    match exif.get_field(tag, In::PRIMARY) {
-        Some(Field {
-            value: Value::Ascii(ref vec),
-            ..
-        }) if !vec.is_empty() => DateTime::from_ascii(&vec[0]).ok(),
-        _ => None,
-    }
-}
-
-// // TODO: for meaning, see: https://magnushoff.com/articles/jpeg-orientation/
-// fn exif_orientation(exif: &Exif) -> Option<u16> {
-//     use exif::{Field, In, Tag, Value};
-
-//     match exif.get_field(Tag::Orientation, In::PRIMARY) {
-//         Some(Field{value: Value::Short(ref vec), ..})
-//             if !vec.is_empty() => Some(vec[0]),
-//         _ => None
-//     }
-// }
