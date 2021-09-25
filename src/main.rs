@@ -1,6 +1,7 @@
 use std::fs::{read, File};
 use std::io::{Cursor, Write};
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, RwLock};
 
 use anyhow::{anyhow, Context, Result};
 use chrono::naive::{NaiveDate, NaiveDateTime};
@@ -23,6 +24,7 @@ fn main() -> Result<()> {
     // TODO[LATER]: use Arc<RwLock<T>> instead of Arc<Mutex<T>>
     let db = DbConnection::open("backer.db")?;
     db_init(&db)?;
+    let db = Arc::new(RwLock::new(db));
 
     // TODO[LATER]: load from JSON more or less: {"disk":["d:\\backer-id.json","c:\\fotki\\backer-id.json"],"ipfs":[...]}
     let marker_paths = vec![
@@ -48,11 +50,13 @@ fn main() -> Result<()> {
         let relative = os_relative
             .to_slash()
             .with_context(|| format!("Failed to convert path {:?} to slash-based", os_relative))?;
-        if db_exists(&db, &marker, &relative)? {
+        let db_read = db.read().unwrap();
+        if db_exists(&db_read, &marker, &relative)? {
             stdout.write_all(b".")?;
             stdout.flush()?;
             continue;
         }
+        drop(db_read);
 
         // Calculate sha1 hash of the file contents.
         // TODO[LATER]: maybe switch to a secure hash (sha2 or other, see: https://github.com/RustCrypto/hashes)
@@ -91,7 +95,9 @@ fn main() -> Result<()> {
             date,
             thumb: thumb_jpeg,
         };
-        db_upsert(&db, &marker, &relative, &info)?;
+        let db_write = db.write().unwrap();
+        db_upsert(&db_write, &marker, &relative, &info)?;
+        drop(db_write);
 
         stdout.write_all(b"+")?;
         stdout.flush()?;
