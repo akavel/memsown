@@ -5,4 +5,3 @@ pub struct FileInfo {
     pub date: Option<NaiveDateTime>,
     pub thumb: Vec<u8>,
 }
-

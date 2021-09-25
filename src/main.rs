@@ -6,11 +6,11 @@ use anyhow::{Context, Result};
 use chrono::naive::{NaiveDate, NaiveDateTime};
 use exif::{Exif, Reader as ExifReader};
 use globwalk::GlobWalkerBuilder;
-use image::io::Reader as ImageReader;
 use image::imageops::FilterType;
+use image::io::Reader as ImageReader;
 use path_slash::PathExt;
 use rusqlite::{params, Connection as DbConnection};
-use sha1::{Sha1, Digest};
+use sha1::{Digest, Sha1};
 
 fn main() -> Result<()> {
     // TODO[LATER]: run rustfmt on this repo
@@ -46,7 +46,8 @@ fn main() -> Result<()> {
         let buf = read(&path)?;
 
         let os_relative = path.strip_prefix(root)?;
-        let relative = os_relative.to_slash()
+        let relative = os_relative
+            .to_slash()
             .with_context(|| format!("Failed to convert path {:?} to slash-based", os_relative))?;
         if db_exists(&db, &marker, &relative)? {
             stdout.write_all(b".")?;
@@ -59,14 +60,19 @@ fn main() -> Result<()> {
         let hash = format!("{:x}", Sha1::digest(&buf));
 
         // Does the JPEG have Exif block? We assume it'd be the most reliable source of metadata.
-        let exif = ExifReader::new().read_from_container(&mut Cursor::new(&buf)).ok();
+        let exif = ExifReader::new()
+            .read_from_container(&mut Cursor::new(&buf))
+            .ok();
         let date = try_deduce_date(exif.as_ref(), &relative);
         // // TODO[LATER]: use some orientation enum / stricter type instead of raw u16
         // // TODO[LATER]: test exif deorienting with cases from: https://github.com/recurser/exif-orientation-examples
         // // (see also: https://www.daveperrett.com/articles/2012/07/28/exif-orientation-handling-is-a-ghetto)
         // let orientation = exif.as_ref().and_then(exif_orientation).unwrap_or(1);
 
-        let img = match ImageReader::new(Cursor::new(&buf)).with_guessed_format()?.decode() {
+        let img = match ImageReader::new(Cursor::new(&buf))
+            .with_guessed_format()?
+            .decode()
+        {
             Ok(img) => img,
             Err(err) => {
                 // TODO[LATER]: use termcolor crate to print errors in red
@@ -81,7 +87,7 @@ fn main() -> Result<()> {
         let mut thumb_jpeg = Vec::<u8>::new();
         thumb.write_to(&mut thumb_jpeg, image::ImageOutputFormat::Jpeg(90))?;
 
-        let info = backer::model::FileInfo{
+        let info = backer::model::FileInfo {
             hash: hash.clone(),
             date,
             thumb: thumb_jpeg,
@@ -114,48 +120,55 @@ fn marker_read(dir: &str) -> Result<String> {
 }
 
 fn db_init(db: &DbConnection) -> ::rusqlite::Result<()> {
-    db.execute_batch("
-      CREATE TABLE IF NOT EXISTS file (
-        hash TEXT UNIQUE NOT NULL
-          CHECK(length(hash) > 0),
-        date TEXT,
-        thumbnail BLOB
-      );
-      CREATE INDEX IF NOT EXISTS file_date ON file(date);
+    db.execute_batch(
+        "
+          CREATE TABLE IF NOT EXISTS file (
+            hash TEXT UNIQUE NOT NULL
+              CHECK(length(hash) > 0),
+            date TEXT,
+            thumbnail BLOB
+          );
+          CREATE INDEX IF NOT EXISTS file_date ON file(date);
 
-      CREATE TABLE IF NOT EXISTS location (
-        file_id INTEGER NOT NULL,
-        backend_tag STRING NOT NULL,
-        path STRING NOT NULL
-      );
-      CREATE INDEX IF NOT EXISTS
-        location_fileID ON location (file_id);
-      CREATE UNIQUE INDEX IF NOT EXISTS
-        location_perBackend ON location (backend_tag, path);
-      ")
+          CREATE TABLE IF NOT EXISTS location (
+            file_id INTEGER NOT NULL,
+            backend_tag STRING NOT NULL,
+            path STRING NOT NULL
+          );
+          CREATE INDEX IF NOT EXISTS
+            location_fileID ON location (file_id);
+          CREATE UNIQUE INDEX IF NOT EXISTS
+            location_perBackend ON location (backend_tag, path);
+        ",
+    )
 }
 
 fn db_exists(db: &DbConnection, marker: &str, relative: &str) -> ::rusqlite::Result<bool> {
-    db.query_row("
-        SELECT COUNT(*) FROM location
-          WHERE backend_tag = ?
-          AND path = ?",
+    db.query_row(
+        "SELECT COUNT(*) FROM location
+            WHERE backend_tag = ?
+            AND path = ?",
         params![marker, relative],
         |row| row.get(0),
     )
 }
 
-fn db_upsert(db: &DbConnection, marker: &str, relative: &str, info: &backer::model::FileInfo) -> Result<()> {
-    db.execute("
-        INSERT INTO file(hash,date,thumbnail) VALUES(?,?,?)
-          ON CONFLICT(hash) DO UPDATE SET
-            date = ifnull(date, excluded.date)",
+fn db_upsert(
+    db: &DbConnection,
+    marker: &str,
+    relative: &str,
+    info: &backer::model::FileInfo,
+) -> Result<()> {
+    db.execute(
+        "INSERT INTO file(hash,date,thumbnail) VALUES(?,?,?)
+            ON CONFLICT(hash) DO UPDATE SET
+                date = ifnull(date, excluded.date)",
         params![&info.hash, &info.date, &info.thumb],
     )?;
-    db.execute("
-        INSERT INTO location(file_id,backend_tag,path)
-          SELECT rowid, ?, ? FROM file
-            WHERE hash = ? LIMIT 1;",
+    db.execute(
+        "INSERT INTO location(file_id,backend_tag,path)
+            SELECT rowid, ?, ? FROM file
+              WHERE hash = ? LIMIT 1;",
         params![&marker, &relative, &info.hash],
     )?;
     Ok(())
@@ -180,19 +193,22 @@ fn try_deduce_date(exif: Option<&Exif>, relative_path: &str) -> Option<NaiveDate
 }
 
 fn exif_date_to_naive(d: &::exif::DateTime) -> NaiveDateTime {
-    NaiveDate::from_ymd(d.year.into(), d.month.into(), d.day.into())
-        .and_hms(d.hour.into(), d.minute.into(), d.second.into())
+    NaiveDate::from_ymd(d.year.into(), d.month.into(), d.day.into()).and_hms(
+        d.hour.into(),
+        d.minute.into(),
+        d.second.into(),
+    )
 }
 
 fn exif_date_from(exif: &Exif, tag: ::exif::Tag) -> Option<::exif::DateTime> {
     use exif::{DateTime, Field, In, Value};
 
     match exif.get_field(tag, In::PRIMARY) {
-        Some(Field{value: Value::Ascii(ref vec), ..})
-            if !vec.is_empty() => {
-                DateTime::from_ascii(&vec[0]).ok()
-            }
-        _ => None
+        Some(Field {
+            value: Value::Ascii(ref vec),
+            ..
+        }) if !vec.is_empty() => DateTime::from_ascii(&vec[0]).ok(),
+        _ => None,
     }
 }
 

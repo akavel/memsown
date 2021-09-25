@@ -4,7 +4,6 @@ use anyhow::Result;
 use iced::Sandbox;
 use rusqlite::Connection as DbConnection;
 
-
 fn main() -> iced::Result {
     println!("Hello view");
 
@@ -24,7 +23,7 @@ impl iced::Sandbox for Gallery {
     type Message = ();
 
     fn new() -> Gallery {
-        Gallery{
+        Gallery {
             db: Arc::new(Mutex::new(DbConnection::open("backer.db").unwrap())),
 
             scrollable: iced::widget::scrollable::State::new(),
@@ -45,8 +44,7 @@ impl iced::Sandbox for Gallery {
         // FIXME: Milestone: show some info about where img is present
 
         iced::widget::scrollable::Scrollable::new(&mut self.scrollable)
-            .push(
-                backer::widgets::gallery::Gallery::new(Arc::clone(&self.db))
-            ).into()
+            .push(backer::widgets::gallery::Gallery::new(Arc::clone(&self.db)))
+            .into()
     }
 }

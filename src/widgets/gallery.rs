@@ -1,15 +1,9 @@
 use std::sync::{Arc, Mutex};
 
-use iced_graphics::{
-    Backend, Color, Primitive, Rectangle, Renderer,
-};
-use iced_native::{
-    layout, mouse,
-    Layout, Length, Point, Size, Widget,
-};
+use iced_graphics::{Backend, Color, Primitive, Rectangle, Renderer};
+use iced_native::{layout, mouse, Layout, Length, Point, Size, Widget};
 use image::ImageDecoder;
 use rusqlite::params;
-
 
 pub struct Gallery {
     // NOTE: when modifying, make sure to adjust Widget::hash_layout() if needed
@@ -31,35 +25,36 @@ impl Gallery {
 }
 
 impl<Message, B> Widget<Message, Renderer<B>> for Gallery
-where B: Backend,
+where
+    B: Backend,
 {
-    fn width(&self) -> Length { Length::Fill }
+    fn width(&self) -> Length {
+        Length::Fill
+    }
 
-    fn height(&self) -> Length { Length::Fill }
+    fn height(&self) -> Length {
+        Length::Fill
+    }
 
     fn hash_layout(&self, hasher: &mut iced_native::Hasher) {
         use std::hash::Hash;
 
         let db = self.db.lock().unwrap();
-        let n_files: i32 = db.query_row(
-            "SELECT COUNT(*) FROM file", [],
-            |row| row.get(0)).unwrap();
+        let n_files: i32 = db
+            .query_row("SELECT COUNT(*) FROM file", [], |row| row.get(0))
+            .unwrap();
         drop(db);
 
         n_files.hash(hasher);
     }
 
-    fn layout(
-        &self,
-        _: &Renderer<B>,
-        limits: &layout::Limits,
-    ) -> layout::Node {
+    fn layout(&self, _: &Renderer<B>, limits: &layout::Limits) -> layout::Node {
         // println!("MCDBG limits: {:?}", limits);
 
         let db = self.db.lock().unwrap();
-        let n_files: u32 = db.query_row(
-            "SELECT COUNT(*) FROM file", [],
-            |row| row.get(0)).unwrap();
+        let n_files: u32 = db
+            .query_row("SELECT COUNT(*) FROM file", [], |row| row.get(0))
+            .unwrap();
         drop(db);
 
         let columns = ((limits.max().width - self.spacing) / (self.tile_w + self.spacing)) as u32;
@@ -67,9 +62,7 @@ where B: Backend,
 
         let height = (self.spacing as u32) + rows * (self.tile_h + self.spacing) as u32;
         // println!("MCDBG n={} x={} y={} h={}", n_files, columns, rows, height);
-        layout::Node::new(Size::new(
-            limits.max().width,
-            height as f32))
+        layout::Node::new(Size::new(limits.max().width, height as f32))
     }
 
     fn draw(
@@ -91,7 +84,8 @@ where B: Backend,
         //          same coordinate system as layout.bounds(), not relative to them?
         //  hecrj: Yes, same system.
 
-        let columns = ((layout.bounds().width - self.spacing) / (self.tile_w + self.spacing)) as u32;
+        let columns =
+            ((layout.bounds().width - self.spacing) / (self.tile_w + self.spacing)) as u32;
 
         // Index of first thumbnail to draw in top-left corner
         let offset = columns * ((viewport.y - self.spacing) / (self.tile_h + self.spacing)) as u32;
@@ -101,18 +95,23 @@ where B: Backend,
 
         // FIXME: calculate LIMIT & OFFSET based on viewport vs. layout.bounds
         // TODO[LATER]: think whether to remove .unwrap()
-        let mut query = db.prepare_cached(r"
-            SELECT hash, date, thumbnail
-                FROM file
-                ORDER BY date
-                LIMIT ? OFFSET ?").unwrap();
-        let file_iter = query.query_map(
-            params!(limit, offset),
-            |row| Ok(crate::model::FileInfo {
-                hash: row.get_unwrap(0),
-                date: row.get_unwrap(1),
-                thumb: row.get_unwrap(2),
-            })).unwrap();
+        let mut query = db
+            .prepare_cached(
+                r"SELECT hash, date, thumbnail
+                    FROM file
+                    ORDER BY date
+                    LIMIT ? OFFSET ?",
+            )
+            .unwrap();
+        let file_iter = query
+            .query_map(params!(limit, offset), |row| {
+                Ok(crate::model::FileInfo {
+                    hash: row.get_unwrap(0),
+                    date: row.get_unwrap(1),
+                    thumb: row.get_unwrap(2),
+                })
+            })
+            .unwrap();
 
         // println!("{:?} {:?}", layout.bounds(), &viewport);
 
@@ -124,19 +123,23 @@ where B: Backend,
             let file = row.unwrap();
 
             // Extract dimensions of thumbnail
-            let (w, h) = image::jpeg::JpegDecoder::new(std::io::Cursor::new(&file.thumb)).unwrap().dimensions();
+            let (w, h) = image::jpeg::JpegDecoder::new(std::io::Cursor::new(&file.thumb))
+                .unwrap()
+                .dimensions();
             let (w, h) = (w as f32, h as f32);
             // Calculate scale, keeping aspect ratio
             let scale = 1_f32.min((w / self.tile_w).max(h / self.tile_h));
             // Calculate alignment so that the thumbnail is centered in its space
-            let align_x = (self.tile_w - w/scale) / 2.0;
-            let align_y = (self.tile_h - h/scale) / 2.0;
+            let align_x = (self.tile_w - w / scale) / 2.0;
+            let align_y = (self.tile_h - h / scale) / 2.0;
 
             view.push(Primitive::Image {
                 handle: iced_native::image::Handle::from_memory(file.thumb),
                 bounds: Rectangle {
-                    x: x+align_x, y: y+align_y,
-                    width: w, height: h,
+                    x: x + align_x,
+                    y: y + align_y,
+                    width: w,
+                    height: h,
                 },
             });
 
@@ -175,7 +178,6 @@ where B: Backend,
             }
         }
 
-
         // TODO[LATER]: show text message if no thumbnails in DB
         (
             Primitive::Group { primitives: view },
@@ -183,7 +185,6 @@ where B: Backend,
         )
     }
 }
-
 
 impl<'a, Message, B> From<Gallery> for iced_native::Element<'a, Message, Renderer<B>>
 where
