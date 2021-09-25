@@ -31,6 +31,7 @@ fn main() -> Result<()> {
 
     let root = r"c:\fotki";
 
+    // FIXME: Milestone: read from multiple marker roots in parallel
     let marker = marker_read(root)?;
     println!("marker {}", &marker);
 
