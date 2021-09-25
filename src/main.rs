@@ -26,8 +26,8 @@ fn main() -> Result<()> {
 
     // TODO[LATER]: load from JSON more or less: {"disk":["d:\\backer-id.json","c:\\fotki\\backer-id.json"],"ipfs":[...]}
     let marker_paths = vec![
-        r"d:\backer-id.json".into(),
-        r"c:\fotki\backer-id.json".into(),
+        r"d:\backer-id.json",
+        r"c:\fotki\backer-id.json",
     ];
 
     // FIXME: Milestone: read from multiple marker roots in parallel
