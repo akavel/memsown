@@ -6,14 +6,13 @@ fn main() -> iced::Result {
     Preview::run(iced::Settings::default())
 }
 
-struct Preview {
-}
+struct Preview {}
 
 impl iced::Sandbox for Preview {
     type Message = ();
 
     fn new() -> Preview {
-        Preview { }
+        Preview {}
     }
 
     fn title(&self) -> String {

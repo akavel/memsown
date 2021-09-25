@@ -25,6 +25,7 @@ fn main() -> Result<()> {
     let db = Arc::new(Mutex::new(db));
 
     // TODO[LATER]: load from JSON more or less: {"disk":["d:\\backer-id.json","c:\\fotki\\backer-id.json"],"ipfs":[...]}
+    #[rustfmt::skip]
     let marker_paths = vec![
         r"d:\backer-id.json",
         r"c:\fotki\backer-id.json",
@@ -35,14 +36,11 @@ fn main() -> Result<()> {
     for (i, marker) in marker_paths.iter().enumerate() {
         let db = db.clone();
         let marker = marker.to_owned();
-        threads.push(
-            thread::spawn(move || process_tree(i, marker, db).unwrap())
-        );
+        threads.push(thread::spawn(move || process_tree(i, marker, db).unwrap()));
     }
     for t in threads {
         t.join().unwrap();
     }
-
 
     // FIXME: Stage 2: check if all files from DB are present on disk, delete entries for any missing
 
@@ -167,7 +165,11 @@ fn marker_read(file_path: &str) -> Result<(PathBuf, String)> {
 }
 
 fn error_chain(err: &anyhow::Error) -> String {
-    err.chain().into_iter().map(|e| e.to_string()).collect::<Vec<String>>().join(": ")
+    err.chain()
+        .into_iter()
+        .map(|e| e.to_string())
+        .collect::<Vec<String>>()
+        .join(": ")
 }
 
 fn db_init(db: &DbConnection) -> ::rusqlite::Result<()> {
@@ -249,11 +251,7 @@ fn try_deduce_date(exif: Option<&Exif>, relative_path: &str) -> Option<NaiveDate
 
 fn exif_date_to_naive(d: &::exif::DateTime) -> Option<NaiveDateTime> {
     NaiveDate::from_ymd_opt(d.year.into(), d.month.into(), d.day.into())
-        .and_then(|date| date.and_hms_opt(
-            d.hour.into(),
-            d.minute.into(),
-            d.second.into(),
-        ))
+        .and_then(|date| date.and_hms_opt(d.hour.into(), d.minute.into(), d.second.into()))
 }
 
 fn exif_date_from(exif: &Exif, tag: ::exif::Tag) -> Option<::exif::DateTime> {
