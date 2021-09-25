@@ -1,7 +1,8 @@
 use std::fs::{read, File};
-use std::io::{Cursor, Write};
+use std::io::{self, Cursor, Write};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
+use std::thread;
 
 use anyhow::{anyhow, Context, Result};
 use chrono::naive::{NaiveDate, NaiveDateTime};
@@ -18,9 +19,6 @@ fn main() -> Result<()> {
     // TODO[LATER]: run clippy on this repo
     println!("Hello, world!");
 
-    let raw_stdout = std::io::stdout();
-    let mut stdout = raw_stdout.lock();
-
     // TODO[LATER]: use Arc<RwLock<T>> instead of Arc<Mutex<T>>
     let db = DbConnection::open("backer.db")?;
     db_init(&db)?;
@@ -33,96 +31,103 @@ fn main() -> Result<()> {
     ];
 
     // FIXME: Milestone: read from multiple marker roots in parallel
+    // TODO[LATER]: consider using 'rayon' lib for prettier parallelism
+    // let mut threads = vec![];
     for (i, marker) in marker_paths.iter().enumerate() {
-        // TODO[LATER]: extract loop contents into a fn for readability
-
-        let (root, marker) = match marker_read(marker) {
-            Ok(m) => Ok(m),
-            Err(err) => {
-                if let Some(cause) = err.downcast_ref::<std::io::Error>() {
-                    if cause.kind() == std::io::ErrorKind::NotFound {
-                        println!("\nSkipping tree at '{}': {}", marker, error_chain(&err));
-                        continue;
-                    }
-                }
-                Err(err)
-            },
-        }?;
-        println!("marker {} at: {}", &marker, root.display());
-
-        // Stage 1: add not-yet-known files into DB
-        // TODO[LATER]: in parallel thread, count all matching files, then when done start showing progress bar/percentage
-        let images = GlobWalkerBuilder::new(&root, "*.{jpg,jpeg}")
-            .case_insensitive(true)
-            .file_type(globwalk::FileType::FILE)
-            .build();
-        for entry in images? {
-            let path = entry?.path().to_owned();
-            let buf = read(&path)?;
-
-            let os_relative = path.strip_prefix(&root)?;
-            let relative = os_relative
-                .to_slash()
-                .with_context(|| format!("Failed to convert path {:?} to slash-based", os_relative))?;
-            let db_read = db.read().unwrap();
-            if db_exists(&db_read, &marker, &relative)? {
-                stdout.write_all(b".")?;
-                stdout.flush()?;
-                continue;
-            }
-            drop(db_read);
-
-            // Calculate sha1 hash of the file contents.
-            // TODO[LATER]: maybe switch to a secure hash (sha2 or other, see: https://github.com/RustCrypto/hashes)
-            let hash = format!("{:x}", Sha1::digest(&buf));
-
-            // Does the JPEG have Exif block? We assume it'd be the most reliable source of metadata.
-            let exif = ExifReader::new()
-                .read_from_container(&mut Cursor::new(&buf))
-                .ok();
-            let date = try_deduce_date(exif.as_ref(), &relative);
-            // // TODO[LATER]: use some orientation enum / stricter type instead of raw u16
-            // // TODO[LATER]: test exif deorienting with cases from: https://github.com/recurser/exif-orientation-examples
-            // // (see also: https://www.daveperrett.com/articles/2012/07/28/exif-orientation-handling-is-a-ghetto)
-            // let orientation = exif.as_ref().and_then(exif_orientation).unwrap_or(1);
-
-            let img = match ImageReader::new(Cursor::new(&buf))
-                .with_guessed_format()?
-                .decode()
-            {
-                Ok(img) => img,
-                Err(err) => {
-                    // TODO[LATER]: use termcolor crate to print errors in red
-                    // FIXME[LATER]: resolve JPEG decoding error: "spectral selection is not allowed in non-progressive scan"
-                    eprintln!("\nFailed to decode JPEG {:?}, skipping: {}", &path, err);
-                    continue;
-                }
-            };
-            // let thumb = img.resize(200, 200, FilterType::Lanczos3);
-            let thumb = img.resize(200, 200, FilterType::CatmullRom);
-            // FIXME[LATER]: fix the thumbnail's orientation
-            let mut thumb_jpeg = Vec::<u8>::new();
-            thumb.write_to(&mut thumb_jpeg, image::ImageOutputFormat::Jpeg(90))?;
-
-            let info = backer::model::FileInfo {
-                hash: hash.clone(),
-                date,
-                thumb: thumb_jpeg,
-            };
-            let db_write = db.write().unwrap();
-            db_upsert(&db_write, &marker, &relative, &info)?;
-            drop(db_write);
-
-            print!("{}", i);
-            stdout.flush()?;
-            // println!("{} {} {:?} {:?}", &hash, path.display(), date.map(|d| d.to_string()), orientation);
-        }
+        process_tree(i, marker, db.clone())?;
     }
 
 
     // FIXME: Stage 2: check if all files from DB are present on disk, delete entries for any missing
 
     // FIXME: Stage 3: scan all files once more and refresh them in DB
+
+    Ok(())
+}
+
+// TODO[LATER]: accept Path (or Into<Path>/From<Path>)
+fn process_tree(i: usize, marker_path: &str, db: Arc<RwLock<DbConnection>>) -> Result<()> {
+    let (root, marker) = match marker_read(&marker_path) {
+        Ok(m) => Ok(m),
+        Err(err) => {
+            if let Some(cause) = err.downcast_ref::<std::io::Error>() {
+                if cause.kind() == std::io::ErrorKind::NotFound {
+                    println!("\nSkipping tree at '{}': {}", marker_path, error_chain(&err));
+                    return Ok(());
+                }
+            }
+            Err(err)
+        },
+    }?;
+    println!("marker {} at: {}", &marker, root.display());
+
+    // Stage 1: add not-yet-known files into DB
+    // TODO[LATER]: in parallel thread, count all matching files, then when done start showing progress bar/percentage
+    let images = GlobWalkerBuilder::new(&root, "*.{jpg,jpeg}")
+        .case_insensitive(true)
+        .file_type(globwalk::FileType::FILE)
+        .build();
+    for entry in images? {
+        let path = entry?.path().to_owned();
+        let buf = read(&path)?;
+
+        let os_relative = path.strip_prefix(&root)?;
+        let relative = os_relative
+            .to_slash()
+            .with_context(|| format!("Failed to convert path {:?} to slash-based", os_relative))?;
+        let db_read = db.read().unwrap();
+        if db_exists(&db_read, &marker, &relative)? {
+            print!(".");
+            io::stdout().flush()?;
+            continue;
+        }
+        drop(db_read);
+
+        // Calculate sha1 hash of the file contents.
+        // TODO[LATER]: maybe switch to a secure hash (sha2 or other, see: https://github.com/RustCrypto/hashes)
+        let hash = format!("{:x}", Sha1::digest(&buf));
+
+        // Does the JPEG have Exif block? We assume it'd be the most reliable source of metadata.
+        let exif = ExifReader::new()
+            .read_from_container(&mut Cursor::new(&buf))
+            .ok();
+        let date = try_deduce_date(exif.as_ref(), &relative);
+        // // TODO[LATER]: use some orientation enum / stricter type instead of raw u16
+        // // TODO[LATER]: test exif deorienting with cases from: https://github.com/recurser/exif-orientation-examples
+        // // (see also: https://www.daveperrett.com/articles/2012/07/28/exif-orientation-handling-is-a-ghetto)
+        // let orientation = exif.as_ref().and_then(exif_orientation).unwrap_or(1);
+
+        let img = match ImageReader::new(Cursor::new(&buf))
+            .with_guessed_format()?
+            .decode()
+        {
+            Ok(img) => img,
+            Err(err) => {
+                // TODO[LATER]: use termcolor crate to print errors in red
+                // FIXME[LATER]: resolve JPEG decoding error: "spectral selection is not allowed in non-progressive scan"
+                eprintln!("\nFailed to decode JPEG {:?}, skipping: {}", &path, err);
+                continue;
+            }
+        };
+        // let thumb = img.resize(200, 200, FilterType::Lanczos3);
+        let thumb = img.resize(200, 200, FilterType::CatmullRom);
+        // FIXME[LATER]: fix the thumbnail's orientation
+        let mut thumb_jpeg = Vec::<u8>::new();
+        thumb.write_to(&mut thumb_jpeg, image::ImageOutputFormat::Jpeg(90))?;
+
+        let info = backer::model::FileInfo {
+            hash: hash.clone(),
+            date,
+            thumb: thumb_jpeg,
+        };
+        let db_write = db.write().unwrap();
+        db_upsert(&db_write, &marker, &relative, &info)?;
+        drop(db_write);
+
+        print!("{}", i);
+        io::stdout().flush()?;
+        // println!("{} {} {:?} {:?}", &hash, path.display(), date.map(|d| d.to_string()), orientation);
+    }
 
     Ok(())
 }
