@@ -83,7 +83,7 @@ fn main() -> Result<()> {
 
         let info = backer::model::FileInfo{
             hash: hash.clone(),
-            date: date,
+            date,
             thumb: thumb_jpeg,
         };
         db_upsert(&db, &marker, &relative, &info)?;
@@ -165,11 +165,11 @@ fn db_upsert(db: &DbConnection, marker: &str, relative: &str, info: &backer::mod
 fn try_deduce_date(exif: Option<&Exif>, relative_path: &str) -> Option<NaiveDateTime> {
     if let Some(exif) = exif {
         use exif::Tag;
-        if let Some(d) = exif_date_from(&exif, Tag::DateTime) {
+        if let Some(d) = exif_date_from(exif, Tag::DateTime) {
             return Some(exif_date_to_naive(&d));
         }
         // TODO[LATER]: does this field make sense?
-        if let Some(d) = exif_date_from(&exif, Tag::DateTimeOriginal) {
+        if let Some(d) = exif_date_from(exif, Tag::DateTimeOriginal) {
             return Some(exif_date_to_naive(&d));
         }
         // TODO[LATER]: are ther other fields we could try?

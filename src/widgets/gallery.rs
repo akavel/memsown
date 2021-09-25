@@ -101,12 +101,12 @@ where B: Backend,
 
         // FIXME: calculate LIMIT & OFFSET based on viewport vs. layout.bounds
         // TODO[LATER]: think whether to remove .unwrap()
-        let mut q = db.prepare_cached(r"
+        let mut query = db.prepare_cached(r"
             SELECT hash, date, thumbnail
                 FROM file
                 ORDER BY date
                 LIMIT ? OFFSET ?").unwrap();
-        let file_iter = q.query_map(
+        let file_iter = query.query_map(
             params!(limit, offset),
             |row| Ok(crate::model::FileInfo {
                 hash: row.get_unwrap(0),
@@ -124,11 +124,10 @@ where B: Backend,
             let file = row.unwrap();
 
             // Extract dimensions of thumbnail
-            let (w, h) = match image::jpeg::JpegDecoder::new(std::io::Cursor::new(&file.thumb)).unwrap().dimensions() {
-                (w, h) => (w as f32, h as f32)
-            };
+            let (w, h) = image::jpeg::JpegDecoder::new(std::io::Cursor::new(&file.thumb)).unwrap().dimensions();
+            let (w, h) = (w as f32, h as f32);
             // Calculate scale, keeping aspect ratio
-            let scale = (1 as f32).min((w / self.tile_w).max(h / self.tile_h));
+            let scale = 1_f32.min((w / self.tile_w).max(h / self.tile_h));
             // Calculate alignment so that the thumbnail is centered in its space
             let align_x = (self.tile_w - w/scale) / 2.0;
             let align_y = (self.tile_h - h/scale) / 2.0;
@@ -186,11 +185,11 @@ where B: Backend,
 }
 
 
-impl<'a, Message, B> Into<iced_native::Element<'a, Message, Renderer<B>>> for Gallery
+impl<'a, Message, B> From<Gallery> for iced_native::Element<'a, Message, Renderer<B>>
 where
     B: Backend,
 {
-    fn into(self) -> iced_native::Element<'a, Message, Renderer<B>> {
-        iced_native::Element::new(self)
+    fn from(v: Gallery) -> iced_native::Element<'a, Message, Renderer<B>> {
+        iced_native::Element::new(v)
     }
 }
