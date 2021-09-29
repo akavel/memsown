@@ -26,6 +26,8 @@ impl iced::Sandbox for Preview {
     fn view(&mut self) -> iced::Element<Self::Message> {
         let path = r"C:\fotki\incoming - z telefonu\20170426_124522.jpg";
 
+        // FIXME: Milestone: deorient the image [apply matrix possibly]
+
         iced::widget::image::Image::new(path).into()
     }
 }
