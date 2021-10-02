@@ -2,6 +2,7 @@
 name = "backer"
 version = "0.1.0"
 edition = "2018"
+resolver = "2"  # required by iced >0.3
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -9,7 +10,8 @@ edition = "2018"
 anyhow = "1.0"
 chrono = "0.4"
 globwalk = "0.8.1"
-iced = { version = "0.3", features = ["image"] }
+#iced = { version = "0.3", features = ["image"] }
+iced = { git = "https://github.com/iced-rs/iced", rev = "569aff3", features = ["image"] }
 image = { version = "0.23", default-features = false, features = ["jpeg_rayon"] }
 kamadak-exif = "0.5"
 path-slash = "0.1"
