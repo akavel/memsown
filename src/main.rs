@@ -21,6 +21,8 @@ use backer::imaging::*;
 // TODO: load date-from-path regexps from JSON:
 //   {"paths-to-dates": {"sf7-c-fotki": {".*(20\d\d)-(\d\d)-(\d\d)": "\1-\2-\3"}}}
 // TODO: introduce "dry-run" mode for testing date-from-path regexps
+// - [LATER] show which rule index detected date in which file (also Exif)
+// - [LATER] also show files that were still "missed" by detection
 // TODO: use date-from-path regexps
 // TODO: skip small images (threshold size configurable in JSON - dimensions or bytes?)
 // - or maybe just skip them in viewer for now?
