@@ -8,7 +8,6 @@ use anyhow::{anyhow, Context, Result};
 use chrono::naive::NaiveDateTime;
 use exif::{Exif, Reader as ExifReader};
 use globwalk::GlobWalkerBuilder;
-use if_chain::if_chain;
 use image::imageops::FilterType;
 use image::io::Reader as ImageReader;
 use path_slash::PathExt;
@@ -72,18 +71,12 @@ fn main() -> Result<()> {
 
 // TODO[LATER]: accept Path (or Into<Path>/From<Path>)
 fn process_tree(i: usize, marker_path: &str, db: Arc<Mutex<DbConnection>>) -> Result<()> {
-    let (root, marker) = if_chain! {
-        let m = marker_read(marker_path);
-        if let Err(ref err) = m;
-        if let Some(cause) = err.downcast_ref::<io::Error>();
-        if cause.kind() == io::ErrorKind::NotFound;
-        then {
-            println!("\nSkipping tree at '{}': {}", marker_path, error_chain(err));
-            return Ok(());
-        } else {
-            m
-        }
-    }?;
+    let m = marker_read(marker_path);
+    if check_io_error(&m) == Some(io::ErrorKind::NotFound) {
+        println!("\nSkipping tree at '{}': {}", marker_path, error_chain(&m.unwrap_err()));
+        return Ok(());
+    }
+    let (root, marker) = m?;
     println!("marker {} at: {}", &marker, root.display());
 
     // Stage 1: add not-yet-known files into DB
@@ -183,6 +176,13 @@ fn marker_read(file_path: &str) -> Result<(PathBuf, String)> {
     let m: Marker = serde_json::from_reader(io::BufReader::new(file))?;
 
     Ok((parent.to_owned(), m.id))
+}
+
+fn check_io_error<T>(result: &Result<T>) -> Option<io::ErrorKind> {
+    result
+        .as_ref().err()
+        .and_then(|err| err.downcast_ref::<io::Error>())
+        .map(|cause| cause.kind())
 }
 
 fn error_chain(err: &anyhow::Error) -> String {
