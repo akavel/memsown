@@ -6,6 +6,7 @@ use anyhow::{Context, Result};
 use ifmt::iformat as ifmt;
 use serde::Deserialize;
 
+
 #[derive(Deserialize)]
 pub struct Config {
     pub markers: Markers,
@@ -18,6 +19,6 @@ pub struct Markers {
 
 pub fn read<P: AsRef<Path> + Display>(path: P) -> Result<Config> {
     let raw = fs::read_to_string(&path).context("reading config file")?;
-    let config = serde_json::from_str(&raw).with_context(|| ifmt!("reading config file '{path}'"))?;
+    let config = toml::from_str(&raw).with_context(|| ifmt!("reading config file '{path}'"))?;
     Ok(config)
 }

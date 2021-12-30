@@ -45,8 +45,8 @@ fn run() -> Result<()> {
     db::init(&db)?;
     let db = Arc::new(Mutex::new(db));
 
-    // TODO[LATER]: use TOML instead of JSON
-    let config = config::read("backer.json")?;
+    // Read and parse config.
+    let config = config::read("backer.toml")?;
 
     // TODO[LATER]: consider using 'rayon' lib for prettier parallelism
     let mut threads = vec![];

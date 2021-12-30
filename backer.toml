@@ -1,0 +1,10 @@
+[markers]
+disk = [
+  'd:\backer-id.json',
+  'c:\fotki\backer-id.json'
+]
+ipfs = [ ]
+
+[[date-paths. "sf7-c-fotki"]]
+path = '/(20\d\d)(\d\d)(\d\d)_(\d\d)(\d\d)(\d\d).jpg'
+date = '\1-\2-\3 \4:\5:\6'
