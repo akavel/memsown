@@ -4,6 +4,7 @@ use anyhow::Result;
 use iced::Sandbox;
 use rusqlite::Connection as DbConnection;
 
+
 fn main() -> iced::Result {
     println!("Hello view");
 

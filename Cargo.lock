@@ -107,8 +107,9 @@ dependencies = [
  "chrono",
  "globwalk",
  "iced",
- "iced_graphics 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "iced_native 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "iced_graphics",
+ "iced_native",
+ "iced_wgpu",
  "image",
  "kamadak-exif",
  "path-slash",
@@ -1147,19 +1148,13 @@ name = "iced"
 version = "0.3.0"
 source = "git+https://github.com/iced-rs/iced?rev=569aff3#569aff331f4fd4e9ead1866f56a8a7170de4b7a5"
 dependencies = [
- "iced_core 0.4.0 (git+https://github.com/iced-rs/iced?rev=569aff3)",
- "iced_futures 0.3.0 (git+https://github.com/iced-rs/iced?rev=569aff3)",
+ "iced_core",
+ "iced_futures",
  "iced_web",
  "iced_wgpu",
  "iced_winit",
  "thiserror",
 ]
-
-[[package]]
-name = "iced_core"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fafe4a5eeee85876f3bad347338456e0f3e7fcdc2381a5ce6c3ba2a60dd769bf"
 
 [[package]]
 name = "iced_core"
@@ -1172,36 +1167,11 @@ dependencies = [
 [[package]]
 name = "iced_futures"
 version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a89fdde2cb9c5807d23f40230297122e480428c660ad7d0373e625cd0725afa1"
-dependencies = [
- "futures",
- "log",
- "wasm-bindgen-futures",
-]
-
-[[package]]
-name = "iced_futures"
-version = "0.3.0"
 source = "git+https://github.com/iced-rs/iced?rev=569aff3#569aff331f4fd4e9ead1866f56a8a7170de4b7a5"
 dependencies = [
  "futures",
  "log",
  "wasm-bindgen-futures",
-]
-
-[[package]]
-name = "iced_graphics"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c7e977de2685d4c0671e6d4b6cab5edab432295507552a746cdb759c0a8dc1f5"
-dependencies = [
- "bytemuck",
- "glam",
- "iced_native 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "iced_style 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "raw-window-handle",
- "thiserror",
 ]
 
 [[package]]
@@ -1212,8 +1182,8 @@ dependencies = [
  "bytemuck",
  "font-kit",
  "glam",
- "iced_native 0.4.0 (git+https://github.com/iced-rs/iced?rev=569aff3)",
- "iced_style 0.3.0 (git+https://github.com/iced-rs/iced?rev=569aff3)",
+ "iced_native",
+ "iced_style",
  "raw-window-handle",
  "thiserror",
 ]
@@ -1221,23 +1191,10 @@ dependencies = [
 [[package]]
 name = "iced_native"
 version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "35030736d160e88b79edddee7ab664a2f3ac6b4046608e298b4c853030e3cc06"
-dependencies = [
- "iced_core 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "iced_futures 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "num-traits",
- "twox-hash",
- "unicode-segmentation",
-]
-
-[[package]]
-name = "iced_native"
-version = "0.4.0"
 source = "git+https://github.com/iced-rs/iced?rev=569aff3#569aff331f4fd4e9ead1866f56a8a7170de4b7a5"
 dependencies = [
- "iced_core 0.4.0 (git+https://github.com/iced-rs/iced?rev=569aff3)",
- "iced_futures 0.3.0 (git+https://github.com/iced-rs/iced?rev=569aff3)",
+ "iced_core",
+ "iced_futures",
  "num-traits",
  "twox-hash",
  "unicode-segmentation",
@@ -1246,18 +1203,9 @@ dependencies = [
 [[package]]
 name = "iced_style"
 version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ca93066a80759bfb31f2900d45ca4cf7500b88611607da5e380143badfcd7837"
-dependencies = [
- "iced_core 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "iced_style"
-version = "0.3.0"
 source = "git+https://github.com/iced-rs/iced?rev=569aff3#569aff331f4fd4e9ead1866f56a8a7170de4b7a5"
 dependencies = [
- "iced_core 0.4.0 (git+https://github.com/iced-rs/iced?rev=569aff3)",
+ "iced_core",
 ]
 
 [[package]]
@@ -1267,9 +1215,9 @@ source = "git+https://github.com/iced-rs/iced?rev=569aff3#569aff331f4fd4e9ead186
 dependencies = [
  "base64",
  "dodrio",
- "iced_core 0.4.0 (git+https://github.com/iced-rs/iced?rev=569aff3)",
- "iced_futures 0.3.0 (git+https://github.com/iced-rs/iced?rev=569aff3)",
- "iced_style 0.3.0 (git+https://github.com/iced-rs/iced?rev=569aff3)",
+ "iced_core",
+ "iced_futures",
+ "iced_style",
  "num-traits",
  "url",
  "wasm-bindgen",
@@ -1287,8 +1235,8 @@ dependencies = [
  "futures",
  "glyph_brush",
  "guillotiere",
- "iced_graphics 0.2.0 (git+https://github.com/iced-rs/iced?rev=569aff3)",
- "iced_native 0.4.0 (git+https://github.com/iced-rs/iced?rev=569aff3)",
+ "iced_graphics",
+ "iced_native",
  "image",
  "kamadak-exif",
  "log",
@@ -1302,9 +1250,9 @@ name = "iced_winit"
 version = "0.3.0"
 source = "git+https://github.com/iced-rs/iced?rev=569aff3#569aff331f4fd4e9ead1866f56a8a7170de4b7a5"
 dependencies = [
- "iced_futures 0.3.0 (git+https://github.com/iced-rs/iced?rev=569aff3)",
- "iced_graphics 0.2.0 (git+https://github.com/iced-rs/iced?rev=569aff3)",
- "iced_native 0.4.0 (git+https://github.com/iced-rs/iced?rev=569aff3)",
+ "iced_futures",
+ "iced_graphics",
+ "iced_native",
  "log",
  "thiserror",
  "winapi",

@@ -162,8 +162,8 @@ where
                     color: Color::BLACK,
                     size: 20.0,
                     font: iced_graphics::Font::Default,
-                    horizontal_alignment: iced_graphics::HorizontalAlignment::Left,
-                    vertical_alignment: iced_graphics::VerticalAlignment::Top,
+                    horizontal_alignment: iced_graphics::alignment::Horizontal::Left,
+                    vertical_alignment: iced_graphics::alignment::Vertical::Top,
                 });
             }
 
