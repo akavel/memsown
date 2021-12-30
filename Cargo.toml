@@ -12,6 +12,7 @@ chrono = "0.4"
 globwalk = "0.8.1"
 #iced = { version = "0.3", features = ["image"] }
 iced = { git = "https://github.com/iced-rs/iced", rev = "569aff3", features = ["image"] }
+ifmt = "0.3.3"
 image = { version = "0.23", default-features = false, features = ["jpeg_rayon"] }
 kamadak-exif = "0.5"
 path-slash = "0.1"

@@ -13,24 +13,22 @@ use path_slash::PathExt;
 use rusqlite::Connection as DbConnection;
 use sha1::{Digest, Sha1};
 
+use crate::interlude::*;
+
 use crate::db;
 use crate::model;
 use crate::imaging::*;
 
 
-// TODO[LATER]: accept Path (or Into<Path>/From<Path>)
-pub fn process_tree(i: usize, marker_path: &str, db: Arc<Mutex<DbConnection>>) -> Result<()> {
+pub fn process_tree(i: usize, marker_path: impl AsRef<Path>, db: Arc<Mutex<DbConnection>>) -> Result<()> {
+    let marker_path = marker_path.as_ref();
     let m = marker_read(marker_path);
     if check_io_error(&m) == Some(io::ErrorKind::NotFound) {
-        println!(
-            "\nSkipping tree at '{}': {}",
-            marker_path,
-            error_chain(&m.unwrap_err())
-        );
+        iprintln!("\nSkipping tree at '" marker_path.display() "': " error_chain(&m.unwrap_err()));
         return Ok(());
     }
     let (root, marker) = m?;
-    println!("marker {} at: {}", &marker, root.display());
+    iprintln!("marker " &marker " at: " root.display());
 
     // Stage 1: add not-yet-known files into DB
     // TODO[LATER]: in parallel thread, count all matching files, then when done start showing progress bar/percentage
@@ -117,8 +115,7 @@ pub fn process_tree(i: usize, marker_path: &str, db: Arc<Mutex<DbConnection>>) -
 }
 
 // TODO[LATER]: accept Path and return Result<(Path,...)> with proper lifetime
-fn marker_read(file_path: &str) -> Result<(PathBuf, String)> {
-    let file_path = Path::new(file_path);
+fn marker_read(file_path: &Path) -> Result<(PathBuf, String)> {
     let parent = file_path.parent().ok_or_else(|| {
         anyhow!(
             "Could not split parent directory of '{}'",
@@ -144,14 +141,6 @@ fn check_io_error<T>(result: &Result<T>) -> Option<io::ErrorKind> {
         .err()
         .and_then(|err| err.downcast_ref::<io::Error>())
         .map(|cause| cause.kind())
-}
-
-fn error_chain(err: &anyhow::Error) -> String {
-    err.chain()
-        .into_iter()
-        .map(|e| e.to_string())
-        .collect::<Vec<String>>()
-        .join(": ")
 }
 
 /// Try hard to find out some datetime info from either `exif` data, or `relative_path` of the file.

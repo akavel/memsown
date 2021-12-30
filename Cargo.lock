@@ -110,6 +110,7 @@ dependencies = [
  "iced_graphics",
  "iced_native",
  "iced_wgpu",
+ "ifmt",
  "image",
  "kamadak-exif",
  "path-slash",
@@ -1275,6 +1276,30 @@ dependencies = [
  "matches",
  "unicode-bidi",
  "unicode-normalization",
+]
+
+[[package]]
+name = "ifmt"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7dd0f8e1404f15475d8a2ca84c2942aa00ac17804ce555294a96f6b5cdf80750"
+dependencies = [
+ "ifmt-impl",
+ "proc-macro-hack",
+]
+
+[[package]]
+name = "ifmt-impl"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e50385662f423431a619ab28ba2beeab3063b581a0d1a943765e23911c502904"
+dependencies = [
+ "lazy_static",
+ "proc-macro-hack",
+ "proc-macro2",
+ "quote",
+ "regex",
+ "syn",
 ]
 
 [[package]]

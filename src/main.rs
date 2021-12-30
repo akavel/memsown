@@ -4,6 +4,9 @@ use std::thread;
 use anyhow::Result;
 use rusqlite::Connection as DbConnection;
 
+use backer::interlude::*;
+
+use backer::config;
 use backer::db;
 use backer::scanning::*;
 
@@ -27,7 +30,13 @@ use backer::scanning::*;
 // TODO: merge 'view' and 'main' binaries
 // TODO: deorient thumbnails stored into DB
 
-fn main() -> Result<()> {
+fn main() {
+    if let Err(err) = run() {
+        ifmt::ieprintln!("Error: " error_chain(&err) ".");
+    }
+}
+
+fn run() -> Result<()> {
     // TODO[LATER]: run rustfmt on this repo
     // TODO[LATER]: run clippy on this repo
     println!("Hello, world!");
@@ -36,16 +45,12 @@ fn main() -> Result<()> {
     db::init(&db)?;
     let db = Arc::new(Mutex::new(db));
 
-    // TODO[LATER]: load from JSON more or less: {"disk":["d:\\backer-id.json","c:\\fotki\\backer-id.json"],"ipfs":[...]}
-    #[rustfmt::skip]
-    let marker_paths = vec![
-        r"d:\backer-id.json",
-        r"c:\fotki\backer-id.json",
-    ];
+    // TODO[LATER]: use TOML instead of JSON
+    let config = config::read("backer.json")?;
 
     // TODO[LATER]: consider using 'rayon' lib for prettier parallelism
     let mut threads = vec![];
-    for (i, marker) in marker_paths.iter().enumerate() {
+    for (i, marker) in config.markers.disk.iter().enumerate() {
         let db = db.clone();
         let marker = marker.to_owned();
         threads.push(thread::spawn(move || process_tree(i, marker, db).unwrap()));
