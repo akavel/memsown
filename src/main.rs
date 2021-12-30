@@ -10,7 +10,6 @@ use backer::config;
 use backer::db;
 use backer::scanning::*;
 
-
 // TODO[LATER]: load marker_paths from JSON
 // TODO: load date-from-path regexps from JSON:
 //   {"paths-to-dates": {"sf7-c-fotki": {".*(20\d\d)-(\d\d)-(\d\d)": "\1-\2-\3"}}}
@@ -65,4 +64,3 @@ fn run() -> Result<()> {
 
     Ok(())
 }
-

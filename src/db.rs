@@ -55,4 +55,3 @@ pub fn upsert(
     )?;
     Ok(())
 }
-

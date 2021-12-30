@@ -1,11 +1,10 @@
-use std::path::{Path, PathBuf};
 use std::fmt::Display;
 use std::fs;
+use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use ifmt::iformat as ifmt;
 use serde::Deserialize;
-
 
 #[derive(Deserialize)]
 pub struct Config {

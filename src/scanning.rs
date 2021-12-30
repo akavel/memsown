@@ -7,8 +7,8 @@ use anyhow::{anyhow, Context, Result};
 use chrono::naive::NaiveDateTime;
 use exif::{Exif, Reader as ExifReader};
 use globwalk::GlobWalkerBuilder;
-use image::io::Reader as ImageReader;
 use image::imageops::FilterType;
+use image::io::Reader as ImageReader;
 use path_slash::PathExt;
 use rusqlite::Connection as DbConnection;
 use sha1::{Digest, Sha1};
@@ -16,11 +16,14 @@ use sha1::{Digest, Sha1};
 use crate::interlude::*;
 
 use crate::db;
-use crate::model;
 use crate::imaging::*;
+use crate::model;
 
-
-pub fn process_tree(i: usize, marker_path: impl AsRef<Path>, db: Arc<Mutex<DbConnection>>) -> Result<()> {
+pub fn process_tree(
+    i: usize,
+    marker_path: impl AsRef<Path>,
+    db: Arc<Mutex<DbConnection>>,
+) -> Result<()> {
     let marker_path = marker_path.as_ref();
     let m = marker_read(marker_path);
     if check_io_error(&m) == Some(io::ErrorKind::NotFound) {
@@ -161,4 +164,3 @@ fn try_deduce_date(exif: Option<&Exif>, relative_path: &str) -> Option<NaiveDate
     // TODO[LATER]: try extracting date from file's creation and modification date (NOTE: latter can be earlier than former on Windows!)
     None
 }
-
