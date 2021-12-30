@@ -1,5 +1,6 @@
 [package]
 name = "backer"
+default-run = "backer"
 version = "0.1.0"
 edition = "2018"
 resolver = "2"  # required by iced >0.3
