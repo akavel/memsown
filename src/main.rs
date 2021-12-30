@@ -5,6 +5,7 @@ use anyhow::Result;
 use rusqlite::Connection as DbConnection;
 
 use backer::interlude::*;
+use rayon::prelude::*;
 
 use backer::config;
 use backer::db;
@@ -47,15 +48,13 @@ fn run() -> Result<()> {
     // Read and parse config.
     let config = config::read("backer.toml")?;
 
-    // TODO[LATER]: consider using 'rayon' lib for prettier parallelism
-    let mut threads = vec![];
-    for (i, marker) in config.markers.disk.iter().enumerate() {
-        let db = db.clone();
-        let marker = marker.to_owned();
-        threads.push(thread::spawn(move || process_tree(i, marker, db).unwrap()));
-    }
-    for t in threads {
-        t.join().unwrap();
+    for err in config.markers.disk
+        .into_par_iter()
+        .enumerate()
+        .filter_map(|(i, marker)| process_tree(i, marker, db.clone()).err())
+        .collect::<Vec<_>>()
+    {
+        ieprintln!("Error: " err);
     }
 
     // FIXME: Stage 2: check if all files from DB are present on disk, delete entries for any missing
