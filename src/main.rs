@@ -32,7 +32,7 @@ use backer::scanning::*;
 
 fn main() {
     if let Err(err) = run() {
-        ifmt::ieprintln!("Error: " error_chain(&err) ".");
+        ieprintln!("Error: " error_chain(&err) ".");
     }
 }
 

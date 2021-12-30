@@ -1,4 +1,4 @@
-pub use ifmt::{iprintln, iformat as ifmt};
+pub use ifmt::{ieprintln, iprint, iprintln, iformat as ifmt};
 
 pub fn error_chain(err: &anyhow::Error) -> String {
     err.chain()

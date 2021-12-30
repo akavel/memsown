@@ -41,7 +41,7 @@ pub fn process_tree(i: usize, marker_path: impl AsRef<Path>, db: Arc<Mutex<DbCon
         let path = match entry {
             Ok(entry) => entry.path().to_owned(),
             Err(err) => {
-                eprintln!("\nFailed to access file, skipping: {}", err);
+                ieprintln!("\nFailed to access file, skipping: " err);
                 continue;
             }
         };
@@ -85,7 +85,7 @@ pub fn process_tree(i: usize, marker_path: impl AsRef<Path>, db: Arc<Mutex<DbCon
             Err(err) => {
                 // TODO[LATER]: use termcolor crate to print errors in red
                 // FIXME[LATER]: resolve JPEG decoding error: "spectral selection is not allowed in non-progressive scan"
-                eprintln!("\nFailed to decode JPEG {:?}, skipping: {}", &path, err);
+                ieprintln!("\nFailed to decode JPEG " &path;? ", skipping: " err);
                 continue;
             }
         };
@@ -106,7 +106,7 @@ pub fn process_tree(i: usize, marker_path: impl AsRef<Path>, db: Arc<Mutex<DbCon
         drop(db_writable);
 
         // Print some debugging info, showing which marker is still being processed.
-        print!("{}", i);
+        iprint!(i);
         io::stdout().flush()?;
         // println!("{} {} {:?} {:?}", &hash, path.display(), date.map(|d| d.to_string()), orientation);
     }
