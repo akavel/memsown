@@ -1,4 +1,4 @@
-use std::fs::{read, File};
+use std::fs::{self, File};
 use std::io::{self, Cursor, Write};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
@@ -90,6 +90,7 @@ fn process_tree(i: usize, marker_path: &str, db: Arc<Mutex<DbConnection>>) -> Re
         .file_type(globwalk::FileType::FILE)
         .build();
     for entry in images? {
+        // Extract path.
         let path = match entry {
             Ok(entry) => entry.path().to_owned(),
             Err(err) => {
@@ -97,12 +98,15 @@ fn process_tree(i: usize, marker_path: &str, db: Arc<Mutex<DbConnection>>) -> Re
                 continue;
             }
         };
-        let buf = read(&path)?;
+        // Read file contents to memory.
+        let buf = fs::read(&path)?;
 
+        // Split-out relative path from root.
         let os_relative = path.strip_prefix(&root)?;
         let relative = os_relative
             .to_slash()
             .with_context(|| format!("Failed to convert path {:?} to slash-based", os_relative))?;
+        // If file already exists in DB, skip it.
         let db_read = db.lock().unwrap();
         if db_exists(&db_read, &marker, &relative)? {
             print!(".");
@@ -125,6 +129,7 @@ fn process_tree(i: usize, marker_path: &str, db: Arc<Mutex<DbConnection>>) -> Re
         // // TODO[LATER]: use some orientation enum / stricter type instead of raw u16
         // let orientation = exif.as_ref().and_then(|v| v.orientation()).unwrap_or(1);
 
+        // Parse the file as an image and create thumbnail, or skip with warning if impossible.
         let img = match ImageReader::new(Cursor::new(&buf))
             .with_guessed_format()?
             .decode()
@@ -143,6 +148,7 @@ fn process_tree(i: usize, marker_path: &str, db: Arc<Mutex<DbConnection>>) -> Re
         let mut thumb_jpeg = Vec::<u8>::new();
         thumb.write_to(&mut thumb_jpeg, image::ImageOutputFormat::Jpeg(90))?;
 
+        // Add image entry to DB.
         let info = backer::model::FileInfo {
             hash: hash.clone(),
             date,
@@ -152,6 +158,7 @@ fn process_tree(i: usize, marker_path: &str, db: Arc<Mutex<DbConnection>>) -> Re
         db_upsert(&db_write, &marker, &relative, &info)?;
         drop(db_write);
 
+        // Print some debugging info, showing which marker is still being processed.
         print!("{}", i);
         io::stdout().flush()?;
         // println!("{} {} {:?} {:?}", &hash, path.display(), date.map(|d| d.to_string()), orientation);
