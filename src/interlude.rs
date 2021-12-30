@@ -1,3 +1,4 @@
+pub use anyhow::anyhow;
 pub use ifmt::{ieprintln, iformat as ifmt, iprint, iprintln};
 
 pub fn error_chain(err: &anyhow::Error) -> String {
@@ -7,3 +8,12 @@ pub fn error_chain(err: &anyhow::Error) -> String {
         .collect::<Vec<String>>()
         .join(": ")
 }
+
+// use anyhow::anyhow;
+// // TODO: how to properly export it?? like ifmt! above?
+// #[macro_export]
+// macro_rules! ianyhow {
+//     ($($arg:tt)*) => {
+//         anyhow!(ifmt!( $($arg)* ))
+//     };
+// }

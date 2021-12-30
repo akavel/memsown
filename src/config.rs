@@ -6,12 +6,12 @@ use anyhow::{Context, Result};
 use ifmt::iformat as ifmt;
 use serde::Deserialize;
 
-#[derive(Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct Config {
     pub markers: Markers,
 }
 
-#[derive(Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct Markers {
     pub disk: Vec<PathBuf>,
 }
