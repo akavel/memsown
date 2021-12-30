@@ -73,7 +73,11 @@ fn main() -> Result<()> {
 fn process_tree(i: usize, marker_path: &str, db: Arc<Mutex<DbConnection>>) -> Result<()> {
     let m = marker_read(marker_path);
     if check_io_error(&m) == Some(io::ErrorKind::NotFound) {
-        println!("\nSkipping tree at '{}': {}", marker_path, error_chain(&m.unwrap_err()));
+        println!(
+            "\nSkipping tree at '{}': {}",
+            marker_path,
+            error_chain(&m.unwrap_err())
+        );
         return Ok(());
     }
     let (root, marker) = m?;
@@ -180,7 +184,8 @@ fn marker_read(file_path: &str) -> Result<(PathBuf, String)> {
 
 fn check_io_error<T>(result: &Result<T>) -> Option<io::ErrorKind> {
     result
-        .as_ref().err()
+        .as_ref()
+        .err()
         .and_then(|err| err.downcast_ref::<io::Error>())
         .map(|cause| cause.kind())
 }
@@ -266,4 +271,3 @@ fn try_deduce_date(exif: Option<&Exif>, relative_path: &str) -> Option<NaiveDate
     // TODO[LATER]: try extracting date from file's creation and modification date (NOTE: latter can be earlier than former on Windows!)
     None
 }
-

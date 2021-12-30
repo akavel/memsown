@@ -16,10 +16,13 @@ macro_rules! exif_field {
     ($exif:ident [ $tag:expr ] as $val:path { ref $v:tt } => $body:block) => {
         // TODO: match &$exif ... ?
         match $exif.get_field($tag, In::PRIMARY) {
-            Some(Field { value: $val(ref vec), .. }) if !vec.is_empty() => {
+            Some(Field {
+                value: $val(ref vec),
+                ..
+            }) if !vec.is_empty() => {
                 let $v = &vec[0];
                 $body
-            },
+            }
             _ => None,
         }
     };
@@ -49,8 +52,8 @@ pub trait ExifDateTimeExt {
 
 impl ExifDateTimeExt for ExifDateTime {
     fn to_naive_opt(&self) -> Option<NaiveDateTime> {
-        NaiveDate::from_ymd_opt(self.year.into(), self.month.into(), self.day.into())
-            .and_then(|date| date.and_hms_opt(self.hour.into(), self.minute.into(), self.second.into()))
+        NaiveDate::from_ymd_opt(self.year.into(), self.month.into(), self.day.into()).and_then(
+            |date| date.and_hms_opt(self.hour.into(), self.minute.into(), self.second.into()),
+        )
     }
 }
-
