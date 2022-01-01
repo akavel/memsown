@@ -1,3 +1,4 @@
+use std::path::Path;
 use std::sync::{Arc, Mutex};
 
 use anyhow::Result;
@@ -6,6 +7,12 @@ use rusqlite::{params, Connection};
 
 // TODO[LATER]: use Arc<RwLock<T>> instead of Arc<Mutex<T>>
 pub type SyncedDb = Arc<Mutex<Connection>>;
+
+pub fn open(path: impl AsRef<Path>) -> Result<SyncedDb> {
+    let db = Connection::open(path.as_ref())?;
+    init(&db)?;
+    Ok(Arc::new(Mutex::new(db)))
+}
 
 pub fn init(db: &Connection) -> rusqlite::Result<()> {
     db.execute_batch(

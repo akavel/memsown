@@ -1,9 +1,7 @@
-use std::sync::{Arc, Mutex};
 use std::thread;
 
 use anyhow::Result;
 use iced::Application;
-use rusqlite::Connection as DbConnection;
 
 use backer::interlude::*;
 use rayon::prelude::*;
@@ -43,9 +41,7 @@ fn run() -> Result<()> {
     // TODO[LATER]: run clippy on this repo
     println!("Hello, world!");
 
-    let db = DbConnection::open("backer.db")?;
-    db::init(&db)?;
-    let db = Arc::new(Mutex::new(db));
+    let db = db::open("backer.db")?;
 
     // Read and parse config.
     let config = config::read("backer.toml")?;
