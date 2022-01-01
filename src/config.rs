@@ -1,19 +1,32 @@
+use std::collections::HashMap;
 use std::fmt::Display;
 use std::fs;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-use ifmt::iformat as ifmt;
-use serde::Deserialize;
+use regex::Regex;
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, Deserialize)]
+use crate::interlude::*;
+
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct Config {
     pub markers: Markers,
+    pub date_path: HashMap<String, Vec<DatePath>>,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Markers {
     pub disk: Vec<PathBuf>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct DatePath {
+    pub date: String,
+    #[serde(with = "serde_regex")]
+    pub path: Regex,
 }
 
 pub fn read<P: AsRef<Path> + Display>(path: P) -> Result<Config> {

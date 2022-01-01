@@ -115,9 +115,11 @@ dependencies = [
  "kamadak-exif",
  "path-slash",
  "rayon",
+ "regex",
  "rusqlite",
  "serde",
  "serde_json",
+ "serde_regex",
  "sha-1",
  "toml",
 ]
@@ -2265,6 +2267,16 @@ checksum = "0f690853975602e1bfe1ccbf50504d67174e3bcf340f23b5ea9992e0587a52d8"
 dependencies = [
  "itoa",
  "ryu",
+ "serde",
+]
+
+[[package]]
+name = "serde_regex"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a8136f1a4ea815d7eac4101cfd0b16dc0cb5e1fe1b8609dfd728058656b7badf"
+dependencies = [
+ "regex",
  "serde",
 ]
 
