@@ -1,5 +1,6 @@
 pub mod config;
 pub mod db;
+pub mod gui;
 pub mod imaging;
 pub mod interlude;
 pub mod model;

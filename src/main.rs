@@ -9,7 +9,8 @@ use backer::interlude::*;
 use rayon::prelude::*;
 
 use backer::config::{self, Config};
-use backer::db;
+use backer::db::{self, SyncedDb};
+use backer::gui::Gui;
 use backer::scanning::*;
 
 // TODO[LATER]: load marker_paths from JSON
@@ -56,16 +57,15 @@ fn run() -> Result<()> {
         thread::spawn(move || scan(db, config).unwrap())
     };
 
-    Gallery::run(iced::Settings::with_flags(db))?;
+    // TODO[LATER]: see if IPFS can be reused from: https://github.com/FuzzrNet/Fuzzr
+
+    Gui::run(iced::Settings::with_flags(db))?;
 
     // TODO: somehow be checking status of the thread before GUI finishes; and/or run the thread in loop?
     scanner.join().map_err(|err| anyhow!(ifmt!("error scanning: " err;?)))?;
 
     Ok(())
 }
-
-// TODO[LATER]: use Arc<RwLock<T>> instead of Arc<Mutex<T>>
-type SyncedDb = Arc<Mutex<DbConnection>>;
 
 fn scan(db: SyncedDb, config: Config) -> Result<()> {
     for err in config.markers.disk
@@ -84,42 +84,3 @@ fn scan(db: SyncedDb, config: Config) -> Result<()> {
     Ok(())
 }
 
-// FIXME: duplicated between here and src/bin/view.rs !!!
-struct Gallery {
-    db: SyncedDb,
-
-    // States of sub-widgets
-    scrollable: iced::widget::scrollable::State,
-}
-
-impl iced::Application for Gallery {
-    type Message = ();
-    type Flags = SyncedDb;
-    type Executor = iced::executor::Default;
-
-    fn new(flags: SyncedDb) -> (Gallery, iced::Command<Self::Message>) {
-        (Gallery {
-            db: flags,
-            scrollable: iced::widget::scrollable::State::new(),
-        }, iced::Command::none())
-    }
-
-    fn title(&self) -> String {
-        String::from("Backer") // TODO[LATER]: description and/or status info and/or version
-    }
-
-    fn update(&mut self, _message: Self::Message) -> iced::Command<Self::Message> {
-        // FIXME
-        iced::Command::none()
-    }
-
-    fn view(&mut self) -> iced::Element<Self::Message> {
-        // FIXME: Milestone: detect click
-        // FIXME: Milestone: add preview window on click
-        // FIXME: Milestone: show some info about where img is present
-
-        iced::widget::scrollable::Scrollable::new(&mut self.scrollable)
-            .push(backer::widgets::gallery::Gallery::new(Arc::clone(&self.db)))
-            .into()
-    }
-}
