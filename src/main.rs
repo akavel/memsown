@@ -3,13 +3,12 @@ use std::thread;
 use anyhow::Result;
 use iced::Application;
 
-use backer::interlude::*;
-use rayon::prelude::*;
-
-use backer::config::{self, Config};
-use backer::db::{self, SyncedDb};
+use backer::config;
+use backer::db;
 use backer::gui::Gui;
+use backer::interlude::*;
 use backer::scanning::*;
+
 
 // TODO[LATER]: load marker_paths from JSON
 // TODO: load date-from-path regexps from JSON:
@@ -59,23 +58,6 @@ fn run() -> Result<()> {
 
     // TODO: somehow be checking status of the thread before GUI finishes; and/or run the thread in loop?
     scanner.join().map_err(|err| anyhow!(ifmt!("error scanning: " err;?)))?;
-
-    Ok(())
-}
-
-fn scan(db: SyncedDb, config: Config) -> Result<()> {
-    for err in config.markers.disk
-        .into_par_iter()
-        .enumerate()
-        .filter_map(|(i, marker)| process_tree(i, marker, db.clone()).err())
-        .collect::<Vec<_>>()
-    {
-        ieprintln!("Error: " err);
-    }
-
-    // FIXME: Stage 2: check if all files from DB are present on disk, delete entries for any missing
-
-    // FIXME: Stage 3: scan all files once more and refresh them in DB
 
     Ok(())
 }

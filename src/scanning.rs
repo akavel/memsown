@@ -10,14 +10,33 @@ use globwalk::GlobWalkerBuilder;
 use image::imageops::FilterType;
 use image::io::Reader as ImageReader;
 use path_slash::PathExt;
+use rayon::prelude::*;
 use rusqlite::Connection as DbConnection;
 use sha1::{Digest, Sha1};
 
-use crate::interlude::*;
-
-use crate::db;
+use crate::config::Config;
+use crate::db::{self, SyncedDb};
 use crate::imaging::*;
+use crate::interlude::*;
 use crate::model;
+
+
+pub fn scan(db: SyncedDb, config: Config) -> Result<()> {
+    for err in config.markers.disk
+        .into_par_iter()
+        .enumerate()
+        .filter_map(|(i, marker)| process_tree(i, marker, db.clone()).err())
+        .collect::<Vec<_>>()
+    {
+        ieprintln!("Error: " err);
+    }
+
+    // FIXME: Stage 2: check if all files from DB are present on disk, delete entries for any missing
+
+    // FIXME: Stage 3: scan all files once more and refresh them in DB
+
+    Ok(())
+}
 
 pub fn process_tree(
     i: usize,
