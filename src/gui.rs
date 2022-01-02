@@ -19,10 +19,13 @@ impl iced::Application for Gui {
     type Executor = iced::executor::Default;
 
     fn new(flags: SyncedDb) -> (Gui, iced::Command<Self::Message>) {
-        (Gui {
-            db: flags,
-            scrollable: iced_scrollable::State::new(),
-        }, iced::Command::none())
+        (
+            Gui {
+                db: flags,
+                scrollable: iced_scrollable::State::new(),
+            },
+            iced::Command::none(),
+        )
     }
 
     fn title(&self) -> String {

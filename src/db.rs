@@ -4,7 +4,6 @@ use std::sync::{Arc, Mutex};
 use anyhow::Result;
 use rusqlite::{params, Connection};
 
-
 // TODO[LATER]: use Arc<RwLock<T>> instead of Arc<Mutex<T>>
 pub type SyncedDb = Arc<Mutex<Connection>>;
 

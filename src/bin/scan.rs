@@ -5,7 +5,6 @@ use backer::db;
 use backer::interlude::*;
 use backer::scanning::scan;
 
-
 fn main() {
     if let Err(err) = run() {
         ieprintln!("error: " error_chain(&err));

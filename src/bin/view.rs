@@ -3,7 +3,6 @@ use iced::Application;
 use backer::db;
 use backer::gui::Gui;
 
-
 fn main() -> iced::Result {
     println!("Hello view");
 

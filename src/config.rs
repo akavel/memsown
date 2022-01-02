@@ -9,7 +9,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::interlude::*;
 
-
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct Config {

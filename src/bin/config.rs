@@ -5,7 +5,6 @@ use regex::Regex;
 use backer::config::{self, *};
 use backer::interlude::*;
 
-
 fn main() {
     iprintln!("SAMPLE:\n" toml::to_string(&Config {
         markers: Markers{
