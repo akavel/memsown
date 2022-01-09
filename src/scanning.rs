@@ -101,7 +101,7 @@ pub fn process_tree(
         let exif = ExifReader::new()
             .read_from_container(&mut io::Cursor::new(&buf))
             .ok();
-        let date = try_deduce_date(exif.as_ref(), &relative);
+        let date = try_deduce_date(exif.as_ref(), &relative, date_paths.iter().flatten());
         // // TODO[LATER]: use some orientation enum / stricter type instead of raw u16
         // let orientation = exif.as_ref().and_then(|v| v.orientation()).unwrap_or(1);
 
@@ -173,7 +173,11 @@ fn check_io_error<T>(result: &Result<T>) -> Option<io::ErrorKind> {
 }
 
 /// Try hard to find out some datetime info from either `exif` data, or `relative_path` of the file.
-fn try_deduce_date(exif: Option<&Exif>, relative_path: &str) -> Option<NaiveDateTime> {
+fn try_deduce_date<'a>(
+    exif: Option<&Exif>,
+    relative_path: &str,
+    date_paths: impl Iterator<Item = &'a config::DatePath>,
+) -> Option<NaiveDateTime> {
     if let Some(exif) = exif {
         use exif::Tag;
         // TODO[LATER]: are ther other fields we could try?
@@ -186,7 +190,14 @@ fn try_deduce_date(exif: Option<&Exif>, relative_path: &str) -> Option<NaiveDate
             return Some(d);
         }
     }
-    // TODO[LATER]: try extracting date from relative_path
+    // try extracting date from relative_path
+    for date_path in date_paths {
+        if let Some(found) = date_path.path.captures(&relative_path) {
+            let mut buf = String::new();
+            found.expand(&date_path.date, &mut buf);
+            iprintln!("\nDATE: " buf;? " FOR: " relative_path;?);
+        }
+    }
     // TODO[LATER]: try extracting date from file's creation and modification date (NOTE: latter can be earlier than former on Windows!)
     None
 }
