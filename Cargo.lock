@@ -121,6 +121,7 @@ dependencies = [
  "serde_json",
  "serde_regex",
  "sha-1",
+ "thiserror",
  "toml",
 ]
 

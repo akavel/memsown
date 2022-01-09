@@ -1,3 +1,4 @@
+use std::convert::{TryFrom, TryInto};
 use std::fs::{self, File};
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
@@ -13,6 +14,7 @@ use path_slash::PathExt;
 use rayon::prelude::*;
 use rusqlite::Connection as DbConnection;
 use sha1::{Digest, Sha1};
+use thiserror::Error;
 
 use crate::config::{self, Config};
 use crate::db::{self, SyncedDb};
@@ -46,13 +48,12 @@ pub fn process_tree(
     mut date_paths_per_marker: config::DatePathsPerMarker,
     db: Arc<Mutex<DbConnection>>,
 ) -> Result<()> {
-    let marker_path = marker_path.as_ref();
-    let m = marker_read(marker_path);
-    if check_io_error(&m) == Some(io::ErrorKind::NotFound) {
-        iprintln!("\nSkipping tree at '" marker_path.display() "': " error_chain(&m.unwrap_err()));
+    let m = marker_path.as_ref().try_into();
+    if let Err(TreeError::NotFound{..}) = &m {
+        iprintln!("\nSkipping tree: " error_chain(&m.unwrap_err().into()));
         return Ok(());
     }
-    let (root, marker) = m?;
+    let Tree{root, marker} = m?;
     iprintln!("marker " &marker " at: " root.display());
 
     // Match any date-path config to marker.
@@ -143,8 +144,45 @@ pub fn process_tree(
     Ok(())
 }
 
+#[derive(Clone, Debug)]
+pub struct Tree {
+    marker: String,
+    root: PathBuf,
+    // date_paths: Vec<DatePath>,
+}
+
+#[derive(Error, Debug)]
+pub enum TreeError {
+    #[error("marker file not found at: '{0}'")]
+    NotFound(PathBuf),
+    #[error("error reading marker file at {path:?}")]
+    Other {
+        path: PathBuf,
+        source: anyhow::Error,
+    },
+}
+
+impl TryFrom<&Path> for Tree {
+    type Error = TreeError;
+
+    fn try_from(marker_path: &Path) -> Result<Tree, Self::Error> {
+        match marker_read(marker_path) {
+            Err(err)
+                if err.downcast_ref().map(io::Error::kind) == Some(io::ErrorKind::NotFound) =>
+            {
+                Err(TreeError::NotFound(marker_path.to_owned()))
+            }
+            Err(err) => Err(TreeError::Other {
+                path: marker_path.to_owned(),
+                source: err,
+            }),
+            Ok(tree) => Ok(tree),
+        }
+    }
+}
+
 // TODO[LATER]: accept Path and return Result<(Path,...)> with proper lifetime
-fn marker_read(file_path: &Path) -> Result<(PathBuf, String)> {
+fn marker_read(file_path: &Path) -> Result<Tree> {
     let parent = file_path.parent().ok_or_else(|| {
         anyhow!(
             "Could not split parent directory of '{}'",
@@ -161,15 +199,10 @@ fn marker_read(file_path: &Path) -> Result<(PathBuf, String)> {
         .with_context(|| format!("Failed to open '{}'", file_path.display()))?;
     let m: Marker = serde_json::from_reader(io::BufReader::new(file))?;
 
-    Ok((parent.to_owned(), m.id))
-}
-
-fn check_io_error<T>(result: &Result<T>) -> Option<io::ErrorKind> {
-    result
-        .as_ref()
-        .err()
-        .and_then(|err| err.downcast_ref::<io::Error>())
-        .map(|cause| cause.kind())
+    Ok(Tree {
+        root: parent.to_owned(),
+        marker: m.id,
+    })
 }
 
 /// Try hard to find out some datetime info from either `exif` data, or `relative_path` of the file.
