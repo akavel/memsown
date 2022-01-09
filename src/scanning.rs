@@ -14,19 +14,20 @@ use rayon::prelude::*;
 use rusqlite::Connection as DbConnection;
 use sha1::{Digest, Sha1};
 
-use crate::config::Config;
+use crate::config::{self, Config};
 use crate::db::{self, SyncedDb};
 use crate::imaging::*;
 use crate::interlude::*;
 use crate::model;
 
 pub fn scan(db: SyncedDb, config: Config) -> Result<()> {
+    let date_paths = config.date_path;
     for err in config
         .markers
         .disk
         .into_par_iter()
         .enumerate()
-        .filter_map(|(i, marker)| process_tree(i, marker, db.clone()).err())
+        .filter_map(|(i, marker)| process_tree(i, marker, date_paths.clone(), db.clone()).err())
         .collect::<Vec<_>>()
     {
         ieprintln!("Error: " err);
@@ -42,6 +43,7 @@ pub fn scan(db: SyncedDb, config: Config) -> Result<()> {
 pub fn process_tree(
     i: usize,
     marker_path: impl AsRef<Path>,
+    mut date_paths_per_marker: config::DatePathsPerMarker,
     db: Arc<Mutex<DbConnection>>,
 ) -> Result<()> {
     let marker_path = marker_path.as_ref();
@@ -52,6 +54,10 @@ pub fn process_tree(
     }
     let (root, marker) = m?;
     iprintln!("marker " &marker " at: " root.display());
+
+    // Match any date-path config to marker.
+    let date_paths = date_paths_per_marker.remove(&marker);
+    iprintln!("\nDate-paths at " marker;? ": " date_paths;?);
 
     // Stage 1: add not-yet-known files into DB
     // TODO[LATER]: in parallel thread, count all matching files, then when done start showing progress bar/percentage

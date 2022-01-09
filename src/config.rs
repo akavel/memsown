@@ -13,8 +13,10 @@ use crate::interlude::*;
 #[serde(rename_all = "kebab-case")]
 pub struct Config {
     pub markers: Markers,
-    pub date_path: HashMap<String, Vec<DatePath>>,
+    pub date_path: DatePathsPerMarker,
 }
+
+pub type DatePathsPerMarker = HashMap<String, Vec<DatePath>>;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Markers {
