@@ -191,6 +191,8 @@ fn try_deduce_date<'a>(
         }
     }
     // try extracting date from relative_path
+    // TODO: helper binary for checking which paths would decode to what dates
+    // TODO[LATER]: add option/button to pre-check date-path patterns on real files tree in GUI
     for date_path in date_paths {
         if let Some(found) = date_path.path.captures(&relative_path) {
             let mut buf = String::new();
