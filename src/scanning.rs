@@ -75,10 +75,7 @@ pub fn process_tree(
         let buf = fs::read(&path)?;
 
         // Split-out relative path from root.
-        let os_relative = path.strip_prefix(&tree.root)?;
-        let relative = os_relative
-            .to_slash()
-            .with_context(|| format!("Failed to convert path {:?} to slash-based", os_relative))?;
+        let relative = relative_slash_path(&tree.root, &path)?;
         // If file already exists in DB, skip it.
         let db_readable = db.lock().unwrap();
         if db::exists(&db_readable, &tree.marker, &relative)? {
@@ -214,6 +211,15 @@ fn marker_read(file_path: &Path) -> Result<Tree> {
         root: parent.to_owned(),
         marker: m.id,
     })
+}
+
+/// Split-out relative path from root, and render it with slashes.
+fn relative_slash_path(root: &Path, path: &Path) -> Result<String> {
+    let os_relative = path.strip_prefix(&root)?;
+    let relative = os_relative
+        .to_slash()
+        .with_context(|| ifmt!("Failed to convert path " os_relative;? " to slash-based"))?;
+    Ok(relative)
 }
 
 /// Try hard to find out some datetime info from either `exif` data, or `relative_path` of the file.
