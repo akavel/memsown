@@ -53,23 +53,19 @@ pub fn process_tree(
         iprintln!("\nSkipping tree: " error_chain(&m.unwrap_err().into()));
         return Ok(());
     }
-    let Tree{root, marker} = m?;
-    iprintln!("marker " &marker " at: " root.display());
+    let tree: Tree = m?;
+    iprintln!("marker " &tree.marker " at: " tree.root;?);
 
     // Match any date-path config to marker.
-    let date_paths = date_paths_per_marker.remove(&marker);
-    iprintln!("\nDate-paths at " marker;? ": " date_paths;?);
+    let date_paths = date_paths_per_marker.remove(&tree.marker);
+    iprintln!("\nDate-paths at " tree.marker;? ": " date_paths;?);
 
     // Stage 1: add not-yet-known files into DB
     // TODO[LATER]: in parallel thread, count all matching files, then when done start showing progress bar/percentage
-    let images = GlobWalkerBuilder::new(&root, "*.{jpg,jpeg}")
-        .case_insensitive(true)
-        .file_type(globwalk::FileType::FILE)
-        .build();
-    for entry in images? {
+    for path in tree.iter()? {
         // Extract path.
-        let path = match entry {
-            Ok(entry) => entry.path().to_owned(),
+        let path = match path { // TODO[LATER]: use `let else` once stable
+            Ok(path) => path,
             Err(err) => {
                 ieprintln!("\nFailed to access file, skipping: " err);
                 continue;
@@ -79,13 +75,13 @@ pub fn process_tree(
         let buf = fs::read(&path)?;
 
         // Split-out relative path from root.
-        let os_relative = path.strip_prefix(&root)?;
+        let os_relative = path.strip_prefix(&tree.root)?;
         let relative = os_relative
             .to_slash()
             .with_context(|| format!("Failed to convert path {:?} to slash-based", os_relative))?;
         // If file already exists in DB, skip it.
         let db_readable = db.lock().unwrap();
-        if db::exists(&db_readable, &marker, &relative)? {
+        if db::exists(&db_readable, &tree.marker, &relative)? {
             print!(".");
             io::stdout().flush()?;
             continue;
@@ -132,7 +128,7 @@ pub fn process_tree(
             thumb: thumb_jpeg,
         };
         let db_writable = db.lock().unwrap();
-        db::upsert(&db_writable, &marker, &relative, &info)?;
+        db::upsert(&db_writable, &tree.marker, &relative, &info)?;
         drop(db_writable);
 
         // Print some debugging info, showing which marker is still being processed.
@@ -160,6 +156,21 @@ pub enum TreeError {
         path: PathBuf,
         source: anyhow::Error,
     },
+}
+
+impl Tree {
+    fn iter(&self) -> Result<impl Iterator<Item = Result<PathBuf, globwalk::WalkError>>> {
+        let walker = GlobWalkerBuilder::new(&self.root, "*.{jpg,jpeg}")
+            .case_insensitive(true)
+            .file_type(globwalk::FileType::FILE)
+            .build()?;
+        Ok(
+            walker.map(|item| match item {
+                Ok(entry) => Ok(entry.into_path()),
+                Err(err) => Err(err),
+            })
+        )
+    }
 }
 
 impl TryFrom<&Path> for Tree {
