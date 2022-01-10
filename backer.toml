@@ -8,7 +8,30 @@ disk = [
 ]
 ipfs = [ ]
 
-# TODO: NIY
 [[date-path. "sf7-c-fotki"]]
-path = '/(20\d\d)(\d\d)(\d\d)_(\d\d)(\d\d)(\d\d).jpg'
+path = '/(20\d\d)(\d\d)(\d\d)_(\d\d)(\d\d)(\d\d)\.jpg'
 date = '$1-$2-$3 $4:$5:$6'
+
+[[date-path. "sf7-c-fotki"]]
+path = '/(20\d\d)-(\d\d)-(\d\d) (\d\d)\.(\d\d)\.(\d\d)\.jpg'
+date = '$1-$2-$3 $4:$5:$6'
+
+[[date-path. "sf7-c-fotki"]]
+path = '/IMG_(20\d\d)(\d\d)(\d\d)_(\d\d)(\d\d)(\d\d)\.jpg'
+date = '$1-$2-$3 $4:$5:$6'
+
+[[date-path. "sf7-c-fotki"]]
+path = '/signal-(20\d\d)-(\d\d)-(\d\d)-(\d\d)(\d\d)(\d\d)(-\d*)?\.jpg'
+date = '$1-$2-$3 $4:$5:$6'
+
+[[date-path. "sf7-c-fotki"]]
+path = '/P_(20\d\d)(\d\d)(\d\d)_(\d\d)(\d\d)(\d\d)\.jpg'
+date = '$1-$2-$3 $4:$5:$6'
+
+[[date-path. "sf7-c-fotki"]]
+path = '/IMG-(20\d\d)(\d\d)(\d\d)-WA\d\d\d\d\.jpe?g'
+date = '$1-$2-$3'
+
+[[date-path. "sf7-c-fotki"]]
+path = '/IMG-(20\d\d)(\d\d)(\d\d)-0\d\d\d\d.jpg'
+date = '$1-$2-$3'

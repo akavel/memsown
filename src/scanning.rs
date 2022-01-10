@@ -139,8 +139,8 @@ pub fn process_tree(
 
 #[derive(Clone, Debug)]
 pub struct Tree {
-    marker: String,
-    root: PathBuf,
+    pub marker: String,
+    pub root: PathBuf,
     // date_paths: Vec<DatePath>,
 }
 
@@ -156,7 +156,7 @@ pub enum TreeError {
 }
 
 impl Tree {
-    fn iter(&self) -> Result<impl Iterator<Item = Result<PathBuf, globwalk::WalkError>>> {
+    pub fn iter(&self) -> Result<impl Iterator<Item = Result<PathBuf, globwalk::WalkError>>> {
         let walker = GlobWalkerBuilder::new(&self.root, "*.{jpg,jpeg}")
             .case_insensitive(true)
             .file_type(globwalk::FileType::FILE)
@@ -214,7 +214,7 @@ fn marker_read(file_path: &Path) -> Result<Tree> {
 }
 
 /// Split-out relative path from root, and render it with slashes.
-fn relative_slash_path(root: &Path, path: &Path) -> Result<String> {
+pub fn relative_slash_path(root: &Path, path: &Path) -> Result<String> {
     let os_relative = path.strip_prefix(&root)?;
     let relative = os_relative
         .to_slash()
