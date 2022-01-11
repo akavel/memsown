@@ -49,7 +49,7 @@ pub fn process_tree(
     db: Arc<Mutex<DbConnection>>,
 ) -> Result<()> {
     let m = marker_path.as_ref().try_into();
-    if let Err(TreeError::NotFound{..}) = &m {
+    if let Err(TreeError::NotFound { .. }) = &m {
         iprintln!("\nSkipping tree: " error_chain(&m.unwrap_err().into()));
         return Ok(());
     }
@@ -64,7 +64,8 @@ pub fn process_tree(
     // TODO[LATER]: in parallel thread, count all matching files, then when done start showing progress bar/percentage
     for path in tree.iter()? {
         // Extract path.
-        let path = match path { // TODO[LATER]: use `let else` once stable
+        let path = match path {
+            // TODO[LATER]: use `let else` once stable
             Ok(path) => path,
             Err(err) => {
                 ieprintln!("\nFailed to access file, skipping: " err);
@@ -161,12 +162,10 @@ impl Tree {
             .case_insensitive(true)
             .file_type(globwalk::FileType::FILE)
             .build()?;
-        Ok(
-            walker.map(|item| match item {
-                Ok(entry) => Ok(entry.into_path()),
-                Err(err) => Err(err),
-            })
-        )
+        Ok(walker.map(|item| match item {
+            Ok(entry) => Ok(entry.into_path()),
+            Err(err) => Err(err),
+        }))
     }
 }
 

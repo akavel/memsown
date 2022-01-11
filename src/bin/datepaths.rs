@@ -42,8 +42,9 @@ fn run() -> Result<()> {
                 if let Some(found) = date_path.path.captures(&relative) {
                     let mut buf = String::new();
                     found.expand(&date_path.date, &mut buf);
-                    let date = NaiveDateTime::parse_from_str(&buf, YMD_HMS)
-                        .or_else(|_| NaiveDate::parse_from_str(&buf, YMD).map(|d| d.and_hms(0,0,0)));
+                    let date = NaiveDateTime::parse_from_str(&buf, YMD_HMS).or_else(|_| {
+                        NaiveDate::parse_from_str(&buf, YMD).map(|d| d.and_hms(0, 0, 0))
+                    });
                     iprintln!("+ " date;? " " relative;?);
                     continue 'files;
                 }
@@ -53,4 +54,3 @@ fn run() -> Result<()> {
     }
     Ok(())
 }
-
