@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use anyhow::{anyhow, Context, Result};
-use chrono::naive::NaiveDateTime;
+use chrono::{NaiveDate, NaiveDateTime};
 use exif::{Exif, Reader as ExifReader};
 use globwalk::GlobWalkerBuilder;
 use image::imageops::FilterType;
@@ -246,7 +246,13 @@ fn try_deduce_date<'a>(
         if let Some(found) = date_path.path.captures(&relative_path) {
             let mut buf = String::new();
             found.expand(&date_path.date, &mut buf);
-            iprintln!("\nDATE: " buf;? " FOR: " relative_path;?);
+            const YMD_HMS: &str = "%Y-%m-%d %H:%M:%S";
+            const YMD: &str = "%Y-%m-%d";
+            let date = NaiveDateTime::parse_from_str(&buf, YMD_HMS)
+                .or_else(|_| NaiveDate::parse_from_str(&buf, YMD).map(|d| d.and_hms(0, 0, 0)));
+            if let Ok(d) = date {
+                return Some(d);
+            }
         }
     }
     // TODO[LATER]: try extracting date from file's creation and modification date (NOTE: latter can be earlier than former on Windows!)
