@@ -34,10 +34,6 @@ pub fn scan(db: SyncedDb, config: Config) -> Result<()> {
         ieprintln!("Error: " err);
     }
 
-    // FIXME: Stage 2: check if all files from DB are present on disk, delete entries for any missing
-
-    // FIXME: Stage 3: scan all files once more and refresh them in DB
-
     Ok(())
 }
 
@@ -58,12 +54,17 @@ pub fn process_tree(
     // Match any date-path config to marker.
     iprintln!("\nDate-paths at " tree.marker;? ": " tree.date_paths;?);
 
+    // Stage 1: add not-yet-known files into DB
     stage1(i, &tree, db)?;
+
+    // FIXME: Stage 2: check if all files from DB are present on disk, delete entries for any missing
+
+    // FIXME: Stage 3: scan all files once more and refresh them in DB
+
     Ok(())
 }
 
 fn stage1(i: usize, tree: &Tree, db: Arc<Mutex<DbConnection>>) -> Result<()> {
-    // Stage 1: add not-yet-known files into DB
     // TODO[LATER]: in parallel thread, count all matching files, then when done start showing progress bar/percentage
     for path in tree.iter()? {
         // Extract path.
