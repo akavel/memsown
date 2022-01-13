@@ -1,4 +1,3 @@
-use std::convert::{TryFrom, TryInto};
 use std::fs::{self, File};
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
@@ -16,7 +15,7 @@ use rusqlite::Connection as DbConnection;
 use sha1::{Digest, Sha1};
 use thiserror::Error;
 
-use crate::config::{self, Config};
+use crate::config::{self, Config, DatePath};
 use crate::db::{self, SyncedDb};
 use crate::imaging::*;
 use crate::interlude::*;
@@ -45,10 +44,10 @@ pub fn scan(db: SyncedDb, config: Config) -> Result<()> {
 pub fn process_tree(
     i: usize,
     marker_path: impl AsRef<Path>,
-    mut date_paths_per_marker: config::DatePathsPerMarker,
+    date_paths_per_marker: config::DatePathsPerMarker,
     db: Arc<Mutex<DbConnection>>,
 ) -> Result<()> {
-    let m = marker_path.as_ref().try_into();
+    let m = Tree::open(marker_path, &date_paths_per_marker);
     if let Err(TreeError::NotFound { .. }) = &m {
         iprintln!("\nSkipping tree: " error_chain(&m.unwrap_err().into()));
         return Ok(());
@@ -57,8 +56,7 @@ pub fn process_tree(
     iprintln!("marker " &tree.marker " at: " tree.root;?);
 
     // Match any date-path config to marker.
-    let date_paths = date_paths_per_marker.remove(&tree.marker);
-    iprintln!("\nDate-paths at " tree.marker;? ": " date_paths;?);
+    iprintln!("\nDate-paths at " tree.marker;? ": " tree.date_paths;?);
 
     // Stage 1: add not-yet-known files into DB
     // TODO[LATER]: in parallel thread, count all matching files, then when done start showing progress bar/percentage
@@ -96,7 +94,7 @@ pub fn process_tree(
         let exif = ExifReader::new()
             .read_from_container(&mut io::Cursor::new(&buf))
             .ok();
-        let date = try_deduce_date(exif.as_ref(), &relative, date_paths.iter().flatten());
+        let date = try_deduce_date(exif.as_ref(), &relative, tree.date_paths.iter());
         // // TODO[LATER]: use some orientation enum / stricter type instead of raw u16
         // let orientation = exif.as_ref().and_then(|v| v.orientation()).unwrap_or(1);
 
@@ -142,7 +140,7 @@ pub fn process_tree(
 pub struct Tree {
     pub marker: String,
     pub root: PathBuf,
-    // date_paths: Vec<DatePath>,
+    pub date_paths: Vec<DatePath>,
 }
 
 #[derive(Error, Debug)]
@@ -157,6 +155,33 @@ pub enum TreeError {
 }
 
 impl Tree {
+    pub fn open(
+        marker_path: impl AsRef<Path>,
+        date_paths_per_marker: &config::DatePathsPerMarker,
+    ) -> Result<Tree, TreeError> {
+        let (root, marker) = match marker_read(marker_path.as_ref()) {
+            Err(err)
+                if err.downcast_ref().map(io::Error::kind) == Some(io::ErrorKind::NotFound) =>
+            {
+                return Err(TreeError::NotFound(marker_path.as_ref().to_owned()))
+            }
+            Err(err) => {
+                return Err(TreeError::Other {
+                    path: marker_path.as_ref().to_owned(),
+                    source: err,
+                })
+            }
+            Ok(tree) => tree,
+        };
+        let date_paths = date_paths_per_marker.get(&marker);
+        let date_paths = date_paths.map(|v| v.to_owned()).unwrap_or(Vec::new());
+        Ok(Tree {
+            marker,
+            root,
+            date_paths,
+        })
+    }
+
     pub fn iter(&self) -> Result<impl Iterator<Item = Result<PathBuf, globwalk::WalkError>>> {
         let walker = GlobWalkerBuilder::new(&self.root, "*.{jpg,jpeg}")
             .case_insensitive(true)
@@ -169,27 +194,8 @@ impl Tree {
     }
 }
 
-impl TryFrom<&Path> for Tree {
-    type Error = TreeError;
-
-    fn try_from(marker_path: &Path) -> Result<Tree, Self::Error> {
-        match marker_read(marker_path) {
-            Err(err)
-                if err.downcast_ref().map(io::Error::kind) == Some(io::ErrorKind::NotFound) =>
-            {
-                Err(TreeError::NotFound(marker_path.to_owned()))
-            }
-            Err(err) => Err(TreeError::Other {
-                path: marker_path.to_owned(),
-                source: err,
-            }),
-            Ok(tree) => Ok(tree),
-        }
-    }
-}
-
 // TODO[LATER]: accept Path and return Result<(Path,...)> with proper lifetime
-fn marker_read(file_path: &Path) -> Result<Tree> {
+fn marker_read(file_path: &Path) -> Result<(PathBuf, String)> {
     let parent = file_path.parent().ok_or_else(|| {
         anyhow!(
             "Could not split parent directory of '{}'",
@@ -206,10 +212,7 @@ fn marker_read(file_path: &Path) -> Result<Tree> {
         .with_context(|| format!("Failed to open '{}'", file_path.display()))?;
     let m: Marker = serde_json::from_reader(io::BufReader::new(file))?;
 
-    Ok(Tree {
-        root: parent.to_owned(),
-        marker: m.id,
-    })
+    Ok((parent.to_owned(), m.id))
 }
 
 /// Split-out relative path from root, and render it with slashes.
