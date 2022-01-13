@@ -58,6 +58,11 @@ pub fn process_tree(
     // Match any date-path config to marker.
     iprintln!("\nDate-paths at " tree.marker;? ": " tree.date_paths;?);
 
+    stage1(i, &tree, db)?;
+    Ok(())
+}
+
+fn stage1(i: usize, tree: &Tree, db: Arc<Mutex<DbConnection>>) -> Result<()> {
     // Stage 1: add not-yet-known files into DB
     // TODO[LATER]: in parallel thread, count all matching files, then when done start showing progress bar/percentage
     for path in tree.iter()? {
