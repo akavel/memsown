@@ -1,5 +1,3 @@
-use std::convert::TryInto;
-
 use anyhow::Result;
 use chrono::{NaiveDate, NaiveDateTime};
 
@@ -20,7 +18,7 @@ fn run() -> Result<()> {
     let mut config = config::read("backer.toml")?;
     for marker_path in config.markers.disk {
         iprintln!("MARKER: " marker_path;?);
-        let tree: Tree = match marker_path.as_path().try_into() {
+        let tree = match Tree::open(marker_path, &config.date_path) {
             Ok(t) => t,
             Err(e) => {
                 ieprintln!("Skipping: " e);
