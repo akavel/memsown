@@ -4,5 +4,6 @@ pub mod gui;
 pub mod imaging;
 pub mod interlude;
 pub mod model;
+pub mod pathwalk;
 pub mod scanning;
 pub mod widgets;
