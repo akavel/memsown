@@ -15,6 +15,14 @@ pub mod matcher {
 
     pub struct CaseInsensitiveExtensions(Vec<OsString>);
 
+    impl CaseInsensitiveExtensions {
+        pub fn boxed(extensions: &[&'static str]) -> Box<dyn Matcher> {
+            Box::new(Self(
+                Vec::from_iter(extensions.iter().map(|s| s.into()))
+            ))
+        }
+    }
+
     impl Matcher for CaseInsensitiveExtensions {
         fn matches(&self, entry: &dyn DirEntry) -> bool {
             let ext = if let Some(ext) = entry.extension() {
@@ -56,6 +64,39 @@ pub mod matcher {
             // Negative
             assert!(!jpegs.matches(&MockEntry(None)));
             assert!(!jpegs.matches(&MockEntry(Some("png".into()))));
+        }
+    }
+}
+
+pub mod walker {
+    use std::path::{Path, PathBuf};
+
+    use super::matcher as m;
+
+    pub struct Files {
+        root: PathBuf,
+        matchers: Vec<Box<dyn m::Matcher>>,
+    }
+
+    impl Files {
+        // TODO[LATER]: make this more generic
+        pub fn new(root: &Path, matchers: impl Iterator<Item = Box<dyn m::Matcher>>) -> Self {
+            Self {
+                root: root.into(),
+                matchers: Vec::from_iter(matchers),
+            }
+        }
+    }
+
+    #[cfg(test)]
+    mod test {
+        use super::*;
+
+        #[test]
+        fn constructor() {
+            let _ = Files::new(Path::new("."), [
+                m::CaseInsensitiveExtensions::boxed(&["jpg", "jpeg"]),
+            ].into_iter());
         }
     }
 }
