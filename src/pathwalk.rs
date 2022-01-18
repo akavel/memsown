@@ -16,9 +16,9 @@ pub mod matcher {
     pub struct CaseInsensitiveExtensions(Vec<OsString>);
 
     impl CaseInsensitiveExtensions {
-        pub fn boxed(extensions: &[&'static str]) -> Box<dyn Matcher> {
+        pub fn boxed(extensions: impl IntoIterator<Item = &'static str>) -> Box<dyn Matcher> {
             Box::new(Self(
-                Vec::from_iter(extensions.iter().map(|s| s.into()))
+                Vec::from_iter(extensions.into_iter().map(|s| s.into()))
             ))
         }
     }
@@ -95,7 +95,7 @@ pub mod walker {
         #[test]
         fn constructor() {
             let _ = Files::new(".", [
-                m::CaseInsensitiveExtensions::boxed(&["jpg", "jpeg"]),
+                m::CaseInsensitiveExtensions::boxed(["jpg", "jpeg"]),
             ]);
         }
     }
