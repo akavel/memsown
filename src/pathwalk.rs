@@ -17,9 +17,9 @@ pub mod matcher {
 
     impl CaseInsensitiveExtensions {
         pub fn boxed(extensions: impl IntoIterator<Item = &'static str>) -> Box<dyn Matcher> {
-            Box::new(Self(
-                Vec::from_iter(extensions.into_iter().map(|s| s.into()))
-            ))
+            Box::new(Self(Vec::from_iter(
+                extensions.into_iter().map(|s| s.into()),
+            )))
         }
     }
 
@@ -80,7 +80,10 @@ pub mod walker {
 
     impl Files {
         // TODO[LATER]: can we avoid Box in arg somehow?
-        pub fn new(root: impl AsRef<Path>, matchers: impl IntoIterator<Item = Box<dyn m::Matcher>>) -> Self {
+        pub fn new(
+            root: impl AsRef<Path>,
+            matchers: impl IntoIterator<Item = Box<dyn m::Matcher>>,
+        ) -> Self {
             Self {
                 root: root.as_ref().into(),
                 matchers: Vec::from_iter(matchers),
@@ -94,9 +97,7 @@ pub mod walker {
 
         #[test]
         fn constructor() {
-            let _ = Files::new(".", [
-                m::CaseInsensitiveExtensions::boxed(["jpg", "jpeg"]),
-            ]);
+            let _ = Files::new(".", [m::CaseInsensitiveExtensions::boxed(["jpg", "jpeg"])]);
         }
     }
 }
