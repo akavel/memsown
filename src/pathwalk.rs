@@ -79,10 +79,10 @@ pub mod walker {
     }
 
     impl Files {
-        // TODO[LATER]: make this more generic
-        pub fn new(root: &Path, matchers: impl Iterator<Item = Box<dyn m::Matcher>>) -> Self {
+        // TODO[LATER]: can we avoid Box in arg somehow?
+        pub fn new(root: impl AsRef<Path>, matchers: impl IntoIterator<Item = Box<dyn m::Matcher>>) -> Self {
             Self {
-                root: root.into(),
+                root: root.as_ref().into(),
                 matchers: Vec::from_iter(matchers),
             }
         }
@@ -94,9 +94,9 @@ pub mod walker {
 
         #[test]
         fn constructor() {
-            let _ = Files::new(Path::new("."), [
+            let _ = Files::new(".", [
                 m::CaseInsensitiveExtensions::boxed(&["jpg", "jpeg"]),
-            ].into_iter());
+            ]);
         }
     }
 }
