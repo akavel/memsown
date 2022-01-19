@@ -25,6 +25,7 @@ serde_regex = "1.1"
 sha-1 = "0.9"
 thiserror = "1.0"
 toml = "0.5"
+walkdir = "2.3"
 # Required for defining custom widgets
 iced_native = { git = "https://github.com/iced-rs/iced", rev = "569aff3" }
 iced_graphics = { git = "https://github.com/iced-rs/iced", rev = "569aff3" }

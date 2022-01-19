@@ -123,6 +123,7 @@ dependencies = [
  "sha-1",
  "thiserror",
  "toml",
+ "walkdir",
 ]
 
 [[package]]
