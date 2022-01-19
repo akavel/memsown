@@ -9,7 +9,6 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0"
 chrono = "0.4"
-globwalk = "0.8.1"
 #iced = { version = "0.3", features = ["image"] }
 iced = { git = "https://github.com/iced-rs/iced", rev = "569aff3", features = ["image"] }
 ifmt = "0.3.3"

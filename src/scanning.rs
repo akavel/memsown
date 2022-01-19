@@ -6,7 +6,6 @@ use std::sync::{Arc, Mutex};
 use anyhow::{anyhow, Context, Result};
 use chrono::{NaiveDate, NaiveDateTime};
 use exif::{Exif, Reader as ExifReader};
-use globwalk::GlobWalkerBuilder;
 use image::imageops::FilterType;
 use image::io::Reader as ImageReader;
 use path_slash::PathExt;
@@ -20,6 +19,7 @@ use crate::db::{self, SyncedDb};
 use crate::imaging::*;
 use crate::interlude::*;
 use crate::model;
+use crate::pathwalk::{matcher, walker};
 
 pub fn scan(db: SyncedDb, config: Config) -> Result<()> {
     let date_paths = config.date_path;
@@ -66,21 +66,24 @@ pub fn process_tree(
 
 fn stage1(i: usize, tree: &Tree, db: Arc<Mutex<DbConnection>>) -> Result<()> {
     // TODO[LATER]: in parallel thread, count all matching files, then when done start showing progress bar/percentage
-    for path in tree.iter()? {
-        // Extract path.
-        let path = match path {
+    for entry in tree.iter() {
+        let entry = match entry {
             // TODO[LATER]: use `let else` once stable
-            Ok(path) => path,
+            Ok(entry) => entry,
             Err(err) => {
                 ieprintln!("\nFailed to access file, skipping: " err);
                 continue;
             }
         };
+        let os_relative = entry.relative_path();
+        let path = tree.root.join(os_relative);
+        let relative = os_relative
+            .to_slash()
+            .with_context(|| ifmt!("Failed to convert path " os_relative;? " to slash-based"))?;
+
         // Read file contents to memory.
         let buf = fs::read(&path)?;
 
-        // Split-out relative path from root.
-        let relative = relative_slash_path(&tree.root, &path)?;
         // If file already exists in DB, skip it.
         let db_readable = db.lock().unwrap();
         if db::exists(&db_readable, &tree.marker, &relative)? {
@@ -188,15 +191,9 @@ impl Tree {
         })
     }
 
-    pub fn iter(&self) -> Result<impl Iterator<Item = Result<PathBuf, globwalk::WalkError>>> {
-        let walker = GlobWalkerBuilder::new(&self.root, "*.{jpg,jpeg}")
-            .case_insensitive(true)
-            .file_type(globwalk::FileType::FILE)
-            .build()?;
-        Ok(walker.map(|item| match item {
-            Ok(entry) => Ok(entry.into_path()),
-            Err(err) => Err(err),
-        }))
+    pub fn iter(&self) -> walker::FilesIterator {
+        let jpeg_matcher = matcher::CaseInsensitiveExtensions::boxed(["jpg", "jpeg"]);
+        walker::Files::new(&self.root, [jpeg_matcher]).into_iter()
     }
 }
 
@@ -219,15 +216,6 @@ fn marker_read(file_path: &Path) -> Result<(PathBuf, String)> {
     let m: Marker = serde_json::from_reader(io::BufReader::new(file))?;
 
     Ok((parent.to_owned(), m.id))
-}
-
-/// Split-out relative path from root, and render it with slashes.
-pub fn relative_slash_path(root: &Path, path: &Path) -> Result<String> {
-    let os_relative = path.strip_prefix(&root)?;
-    let relative = os_relative
-        .to_slash()
-        .with_context(|| ifmt!("Failed to convert path " os_relative;? " to slash-based"))?;
-    Ok(relative)
 }
 
 /// Try hard to find out some datetime info from either `exif` data, or `relative_path` of the file.

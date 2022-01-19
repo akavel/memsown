@@ -1,5 +1,6 @@
-use anyhow::Result;
+use anyhow::{bail, Result};
 use chrono::{NaiveDate, NaiveDateTime};
+use path_slash::PathExt;
 
 use backer::config;
 use backer::interlude::*;
@@ -27,15 +28,22 @@ fn run() -> Result<()> {
         };
 
         let date_paths = config.date_path.remove(&tree.marker);
-        'files: for path in tree.iter()? {
-            let path = match path {
-                Ok(p) => p,
+        'files: for entry in tree.iter() {
+            let entry = match entry {
+                Ok(entry) => entry,
                 Err(e) => {
                     ieprintln!("Failed to access file, skipping: " e);
                     continue;
                 }
             };
-            let relative = relative_slash_path(&tree.root, &path)?;
+            let relative = if let Some(p) = entry.relative_path().to_slash() {
+                p
+            } else {
+                bail!(
+                    "Failed to convert path to slash: {:?}",
+                    entry.relative_path()
+                );
+            };
             for date_path in date_paths.iter().flatten() {
                 if let Some(found) = date_path.path.captures(&relative) {
                     let mut buf = String::new();

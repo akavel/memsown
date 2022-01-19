@@ -86,7 +86,7 @@ pub mod walker {
     }
 
     impl DirEntry {
-        fn relative_path(&self) -> &Path {
+        pub fn relative_path(&self) -> &Path {
             self.relative_path.as_ref()
         }
     }
