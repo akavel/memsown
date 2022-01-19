@@ -146,18 +146,25 @@ pub mod walker {
                 if kind.is_dir() {
                     continue;
                 } else if kind.is_symlink() {
-                    return Some(Err(anyhow!("Don't know what to do with a symbolic link: {:?}", entry.path())));
+                    return Some(Err(anyhow!(
+                        "Don't know what to do with a symbolic link: {:?}",
+                        entry.path()
+                    )));
                 }
                 // Extract relative path.
                 // Note: walkdir pinky-promises that paths will have the prefix, so we should be
                 // safe to just `unwrap()`; but we already have Result return type, so we can just
                 // squeeze another error there instead, just in case.
                 let relative_path = match entry.path().strip_prefix(&self.files.root) {
-                    Err(err) => return Some(Err(anyhow!("Failed to split relative path: {}", err))),
+                    Err(err) => {
+                        return Some(Err(anyhow!("Failed to split relative path: {}", err)))
+                    }
                     Ok(path) => path,
                 };
                 // Check if path is allowed by matchers.
-                let entry = DirEntry{ relative_path: relative_path.into() };
+                let entry = DirEntry {
+                    relative_path: relative_path.into(),
+                };
                 {
                     let mut matched = false;
                     for m in &self.files.matchers {
@@ -170,7 +177,7 @@ pub mod walker {
                         continue;
                     }
                 }
-                return Some(Ok(entry))
+                return Some(Ok(entry));
             }
         }
     }
