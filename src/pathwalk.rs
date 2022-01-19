@@ -69,6 +69,7 @@ pub mod matcher {
 }
 
 pub mod walker {
+    use std::ffi::OsStr;
     use std::path::{Path, PathBuf};
 
     use anyhow::{anyhow, Result};
@@ -90,6 +91,12 @@ pub mod walker {
         }
     }
 
+    impl m::DirEntry for DirEntry {
+        fn extension(&self) -> Option<&OsStr> {
+            self.relative_path.extension()
+        }
+    }
+
     pub struct Files {
         root: PathBuf,
         matchers: Vec<Box<dyn m::Matcher>>,
@@ -106,27 +113,21 @@ pub mod walker {
                 matchers: Vec::from_iter(matchers),
             }
         }
+    }
 
-        // TODO[LATER]: also impl IntoIterator (move semantics, for loops)
-        // TODO[LATER]: try moving Result to `new` func instead
-        // TODO[LATER]: custom Result type instead of anyhow
-        pub fn iter(&self) -> FilesIterator {
+    impl IntoIterator for Files {
+        type Item = Result<DirEntry>;
+        type IntoIter = FilesIterator;
+        fn into_iter(self) -> Self::IntoIter {
             FilesIterator {
-                root: self.root.clone(),
                 iter: WalkDir::new(&self.root).into_iter(),
+                files: self,
             }
         }
     }
 
-    // impl IntoIterator for Files {
-    //     type Item = DirEntry;
-    //     type IntoIter = FilesIterator;
-    //     fn into_iter(self)
-    // }
-
     pub struct FilesIterator {
-        // TODO[LATER]: make `root` a `&Path`
-        root: PathBuf,
+        files: Files,
         iter: walkdir::IntoIter,
     }
 
@@ -151,11 +152,25 @@ pub mod walker {
                 // Note: walkdir pinky-promises that paths will have the prefix, so we should be
                 // safe to just `unwrap()`; but we already have Result return type, so we can just
                 // squeeze another error there instead, just in case.
-                let relative_path = match entry.path().strip_prefix(&self.root) {
+                let relative_path = match entry.path().strip_prefix(&self.files.root) {
                     Err(err) => return Some(Err(anyhow!("Failed to split relative path: {}", err))),
                     Ok(path) => path,
                 };
-                return Some(Ok(DirEntry{ relative_path: relative_path.into() }))
+                // Check if path is allowed by matchers.
+                let entry = DirEntry{ relative_path: relative_path.into() };
+                {
+                    let mut matched = false;
+                    for m in &self.files.matchers {
+                        if m.matches(&entry) {
+                            matched = true;
+                            break;
+                        }
+                    }
+                    if !matched {
+                        continue;
+                    }
+                }
+                return Some(Ok(entry))
             }
         }
     }
