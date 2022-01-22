@@ -57,12 +57,13 @@ where
             .unwrap();
         drop(db);
 
-        let columns = ((limits.max().width - self.spacing) / (self.tile_w + self.spacing)) as u32;
+        let width = limits.max().width;
+        let columns = ((width - self.spacing) / (self.tile_w + self.spacing)) as u32;
         let rows: u32 = (n_files + columns - 1) / columns;
 
         let height = (self.spacing as u32) + rows * (self.tile_h + self.spacing) as u32;
         // println!("MCDBG n={} x={} y={} h={}", n_files, columns, rows, height);
-        layout::Node::new(Size::new(limits.max().width, height as f32))
+        layout::Node::new(Size::new(width, height as f32))
     }
 
     fn draw(
