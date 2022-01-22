@@ -30,6 +30,23 @@ impl Gallery {
             selection: None,
         }
     }
+
+    fn columns(&self, layout: &Layout) -> u32 {
+        ((layout.bounds().width - self.spacing) / (self.tile_w + self.spacing)) as u32
+    }
+
+    fn xy_to_offset(&self, layout: &Layout, p: (f32, f32)) -> u32 {
+        // Note: all calculations in "full" layout coordinates, not in a virtual viewport window.
+        let x_without_left_margin = 0f32.max(p.0 - self.spacing);
+        let col_w = self.tile_w + self.spacing;
+        let col = (x_without_left_margin / col_w) as u32;
+
+        let y_without_top_margin = 0f32.max(p.1 - self.spacing);
+        let row_h = self.tile_h + self.spacing;
+        let row = (y_without_top_margin / row_h) as u32;
+
+        row * self.columns(&layout) + col
+    }
 }
 
 impl<Message, B> Widget<Message, Renderer<B>> for Gallery
@@ -93,11 +110,10 @@ where
         //          same coordinate system as layout.bounds(), not relative to them?
         //  hecrj: Yes, same system.
 
-        let columns =
-            ((layout.bounds().width - self.spacing) / (self.tile_w + self.spacing)) as u32;
+        let columns = self.columns(&layout);
 
         // Index of first thumbnail to draw in top-left corner
-        let offset = columns * ((viewport.y - self.spacing) / (self.tile_h + self.spacing)) as u32;
+        let offset = self.xy_to_offset(&layout, (0., viewport.y));
         let limit = (2 + (viewport.height / (self.tile_h + self.spacing)) as u32) * columns;
 
         let db = self.db.lock().unwrap();
