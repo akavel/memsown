@@ -1,7 +1,9 @@
+use std::ops::Range;
 use std::sync::{Arc, Mutex};
 
 use iced_graphics::{Backend, Color, Primitive, Rectangle, Renderer};
-use iced_native::{layout, mouse, Layout, Length, Point, Size, Widget};
+use iced_native::event::{self, Event};
+use iced_native::{layout, mouse, Clipboard, Layout, Length, Point, Size, Widget};
 use image::ImageDecoder;
 use rusqlite::params;
 
@@ -11,6 +13,9 @@ pub struct Gallery {
     tile_w: f32,
     tile_h: f32,
     spacing: f32,
+
+    // TODO[LATER]: usize or u32 or what?
+    selection: Range<usize>,
 }
 
 impl Gallery {
@@ -20,6 +25,8 @@ impl Gallery {
             tile_w: 200.0,
             tile_h: 200.0,
             spacing: 25.0,
+
+            selection: (0..0),
         }
     }
 }
@@ -184,6 +191,26 @@ where
             Primitive::Group { primitives: view },
             mouse::Interaction::default(),
         )
+    }
+
+    fn on_event(
+        &mut self,
+        event: Event,
+        layout: Layout<'_>,
+        cursor_position: Point,
+        _renderer: &Renderer<B>,
+        _clipboard: &mut dyn Clipboard,
+        _messages: &mut Vec<Message>,
+    ) -> event::Status {
+        use iced::mouse::{Button, Event::*};
+        match event {
+            Event::Mouse(ButtonPressed(Button::Left)) => println!("PRESS: {:?}", cursor_position),
+            Event::Mouse(CursorMoved { position }) => println!(" MOVE: {:?}", position),
+            Event::Mouse(ButtonReleased(Button::Left)) => println!("RLASE: {:?}", cursor_position),
+            _ => (),
+        };
+        // TODO: do we need to "invalidate" a region to ask to redraw?
+        event::Status::Captured
     }
 }
 
