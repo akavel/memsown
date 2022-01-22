@@ -18,6 +18,7 @@ pub struct Gallery {
     // Note: first item in tuple is "first clicked", not "smaller of two">
     // Range is inclusive on both sides.
     selection: (u32, u32),
+    selecting: bool,
 }
 
 impl Gallery {
@@ -29,6 +30,7 @@ impl Gallery {
             spacing: 25.0,
 
             selection: (0, 0),
+            selecting: false,
         }
     }
 
@@ -36,17 +38,22 @@ impl Gallery {
         ((layout.bounds().width - self.spacing) / (self.tile_w + self.spacing)) as u32
     }
 
-    fn xy_to_offset(&self, layout: &Layout, p: (f32, f32)) -> u32 {
+    fn xy_to_offset(&self, layout: &Layout, p: Point) -> u32 {
         // Note: all calculations in "full" layout coordinates, not in a virtual viewport window.
-        let x_without_left_margin = 0f32.max(p.0 - self.spacing);
+        let x_without_left_margin = 0f32.max(p.x - self.spacing);
         let col_w = self.tile_w + self.spacing;
         let col = (x_without_left_margin / col_w) as u32;
 
-        let y_without_top_margin = 0f32.max(p.1 - self.spacing);
+        let y_without_top_margin = 0f32.max(p.y - self.spacing);
         let row_h = self.tile_h + self.spacing;
         let row = (y_without_top_margin / row_h) as u32;
 
         row * self.columns(&layout) + col
+    }
+
+    fn offset_selected(&self, offset: u32) -> bool {
+        let s = self.selection;
+        (s.0 <= offset && offset <= s.1) || (s.1 <= offset && offset <= s.0)
     }
 }
 
@@ -114,7 +121,7 @@ where
         let columns = self.columns(&layout);
 
         // Index of first thumbnail to draw in top-left corner
-        let offset = self.xy_to_offset(&layout, (0., viewport.y));
+        let offset = self.xy_to_offset(&layout, Point::new(0., viewport.y));
         let limit = (2 + (viewport.height / (self.tile_h + self.spacing)) as u32) * columns;
 
         let db = self.db.lock().unwrap();
@@ -147,8 +154,7 @@ where
         let mut y = self.spacing + (offset / columns) as f32 * (self.tile_h + self.spacing);
         for (i, row) in file_iter.enumerate() {
             // Mark tile as selected when appropriate.
-            let i = offset + i as u32;
-            if i >= self.selection.0 && i <= self.selection.1 {
+            if self.offset_selected(offset + i as u32) {
                 view.push(Primitive::Quad {
                     bounds: Rectangle {
                         x: x - self.spacing / 2.,
@@ -240,14 +246,25 @@ where
         use iced::mouse::{Button, Event::*};
         match event {
             Event::Mouse(ButtonPressed(Button::Left)) => {
+                let i = self.xy_to_offset(&layout, cursor_position);
+                self.selection = (i, i);
+                self.selecting = true;
                 // self.selection = Some((
-                println!("PRESS: {:?}", cursor_position);
+                // println!("PRESS: {:?}", cursor_position);
             }
             Event::Mouse(CursorMoved { .. }) => {
+                if self.selecting {
+                    let i = self.xy_to_offset(&layout, cursor_position);
+                    self.selection.1 = i;
+                }
                 println!(" MOVE: {:?}", cursor_position);
                 println!("bounds: {:?} pos: {:?}", layout.bounds(), layout.position());
             }
-            Event::Mouse(ButtonReleased(Button::Left)) => println!("RLASE: {:?}", cursor_position),
+            Event::Mouse(ButtonReleased(Button::Left)) => {
+                self.selecting = false;
+                println!("RLASE: {:?}", cursor_position);
+            }
+            // FIXME: cancel selection when cursor exits window
             _ => return event::Status::Ignored,
         };
         // TODO: do we need to "invalidate" a region to ask to redraw?
