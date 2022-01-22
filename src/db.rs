@@ -70,6 +70,16 @@ pub fn upsert(
     Ok(())
 }
 
+pub fn remove(db: &Connection, marker: &str, relative: &str) -> Result<()> {
+    db.execute(
+        "DELETE FROM location
+            WHERE backend_tag = ?
+            AND path = ?",
+        params![&marker, &relative],
+    )?;
+    Ok(())
+}
+
 pub fn hashes(db: SyncedDb, marker: &str) -> impl Iterator<Item = Result<(String, String)>> {
     LooseIterator {
         db,
