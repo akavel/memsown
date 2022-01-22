@@ -8,7 +8,7 @@ use chrono::{NaiveDate, NaiveDateTime};
 use exif::{Exif, Reader as ExifReader};
 use image::imageops::FilterType;
 use image::io::Reader as ImageReader;
-use path_slash::PathExt;
+use path_slash::{PathBufExt, PathExt};
 use rayon::prelude::*;
 use rusqlite::Connection as DbConnection;
 use sha1::{Digest, Sha1};
@@ -55,16 +55,17 @@ pub fn process_tree(
     iprintln!("\nDate-paths at " tree.marker;? ": " tree.date_paths;?);
 
     // Stage 1: add not-yet-known files into DB
-    stage1(i, &tree, db)?;
+    stage1(i, &tree, &db)?;
 
-    // FIXME: Stage 2: check if all files from DB are present on disk, delete entries for any missing
+    // Stage 2: check if all files from DB are present on disk, delete entries for any missing
+    stage2(&tree, &db)?;
 
     // FIXME: Stage 3: scan all files once more and refresh them in DB
 
     Ok(())
 }
 
-fn stage1(i: usize, tree: &Tree, db: Arc<Mutex<DbConnection>>) -> Result<()> {
+fn stage1(i: usize, tree: &Tree, db: &Arc<Mutex<DbConnection>>) -> Result<()> {
     // TODO[LATER]: in parallel thread, count all matching files, then when done start showing progress bar/percentage
     for entry in tree.iter() {
         let entry = match entry {
@@ -141,6 +142,38 @@ fn stage1(i: usize, tree: &Tree, db: Arc<Mutex<DbConnection>>) -> Result<()> {
         iprint!(i);
         io::stdout().flush()?;
         // println!("{} {} {:?} {:?}", &hash, path.display(), date.map(|d| d.to_string()), orientation);
+    }
+
+    Ok(())
+}
+
+pub fn stage2(tree: &Tree, db: &Arc<Mutex<DbConnection>>) -> Result<()> {
+    for item in db::hashes(db.clone(), &tree.marker) {
+        let (relative_path, db_hash) = item?;
+
+        let path = tree.root.join(PathBuf::from_slash(&relative_path));
+
+        // Try reading file contents to memory.
+        let contents = match fs::read(&path) {
+            Ok(data) => Some(data),
+            Err(err) if err.kind() == io::ErrorKind::NotFound => None,
+            Err(err) => return Err(anyhow!(err)),
+        };
+        if let Some(data) = contents {
+            let disk_hash = hash(&data);
+
+            if disk_hash == db_hash {
+                print!(",");
+                io::stdout().flush()?;
+            } else {
+                iprintln!("\nBAD HASH: " disk_hash " != " db_hash " @ " path;?);
+                // iprintln!("* " db_hash " @ " path;?);
+            }
+        } else {
+            let db = db.lock().unwrap();
+            // TODO[LATER]: add error context info
+            db::remove(&db, &tree.marker, &relative_path)?;
+        }
     }
 
     Ok(())
@@ -262,4 +295,63 @@ fn try_deduce_date<'a>(
     }
     // TODO[LATER]: try extracting date from file's creation and modification date (NOTE: latter can be earlier than former on Windows!)
     None
+}
+
+#[cfg(test)]
+mod test {
+    use tempfile::tempdir;
+
+    use crate::db;
+
+    use super::*;
+
+    #[test]
+    fn stage2_file_not_found() {
+        // arrange
+
+        let marker: &str = "foo-marker";
+        let relative_path: &str = "foo-dir/foo-file.jpeg";
+        let root = tempdir().unwrap();
+        let mut marker_file = fs::File::create(root.path().join("marker.json")).unwrap();
+        marker_file
+            .write_all(r#"{"id": "foo-marker"}"#.as_bytes())
+            .unwrap();
+        // writeln!(marker_file, r#"{"id": "foo-marker"}"#).unwrap();
+        drop(marker_file);
+        let tree = Tree::open(
+            root.path().join("marker.json"),
+            &config::DatePathsPerMarker::new(),
+        )
+        .unwrap();
+
+        let conn = rusqlite::Connection::open_in_memory().unwrap();
+        let db = Arc::new(Mutex::new(conn));
+        let conn = db.lock().unwrap();
+        db::init(&conn).unwrap();
+        db::upsert(
+            &conn,
+            &marker,
+            &relative_path,
+            &crate::model::FileInfo {
+                hash: hash(&Vec::new()),
+                date: None,
+                thumb: Vec::new(),
+            },
+        )
+        .unwrap();
+        assert_eq!(db::exists(&conn, &marker, &relative_path), Ok(true));
+        drop(conn);
+
+        // act
+
+        let res = stage2(&tree, &db);
+
+        // assert
+
+        assert!(res.is_ok(), "stage2 == {:?}", &res);
+
+        let conn = db.lock().unwrap();
+        assert_eq!(db::exists(&conn, &marker, &relative_path), Ok(false));
+        drop(conn);
+    }
 }
