@@ -55,17 +55,29 @@ pub fn process_tree(
     iprintln!("\nDate-paths at " tree.marker;? ": " tree.date_paths;?);
 
     // Stage 1: add not-yet-known files into DB
-    stage1(i, &tree, &db)?;
+    stage1(i, &tree, &db, OnExisting::Skip)?;
 
     // Stage 2: check if all files from DB are present on disk, delete entries for any missing
     stage2(&tree, &db)?;
 
-    // FIXME: Stage 3: scan all files once more and refresh them in DB
+    // Stage 3: scan all files once more and refresh them in DB
+    stage1(i, &tree, &db, OnExisting::Refresh)?;
 
     Ok(())
 }
 
-fn stage1(i: usize, tree: &Tree, db: &Arc<Mutex<DbConnection>>) -> Result<()> {
+#[derive(PartialEq)]
+enum OnExisting {
+    Skip,
+    Refresh,
+}
+
+fn stage1(
+    i: usize,
+    tree: &Tree,
+    db: &Arc<Mutex<DbConnection>>,
+    on_existing: OnExisting,
+) -> Result<()> {
     // TODO[LATER]: in parallel thread, count all matching files, then when done start showing progress bar/percentage
     for entry in tree.iter() {
         let entry = match entry {
@@ -87,7 +99,7 @@ fn stage1(i: usize, tree: &Tree, db: &Arc<Mutex<DbConnection>>) -> Result<()> {
 
         // If file already exists in DB, skip it.
         let db_readable = db.lock().unwrap();
-        if db::exists(&db_readable, &tree.marker, &relative)? {
+        if db::exists(&db_readable, &tree.marker, &relative)? && on_existing == OnExisting::Skip {
             print!(".");
             io::stdout().flush()?;
             continue;

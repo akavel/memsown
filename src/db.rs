@@ -49,6 +49,7 @@ pub fn exists(db: &Connection, marker: &str, relative: &str) -> ::rusqlite::Resu
     )
 }
 
+// FIXME[LATER]: somehow resolve if same hash at different locations gets attributed a different date
 pub fn upsert(
     db: &Connection,
     marker: &str,
@@ -58,13 +59,16 @@ pub fn upsert(
     db.execute(
         "INSERT INTO file(hash,date,thumbnail) VALUES(?,?,?)
             ON CONFLICT(hash) DO UPDATE SET
-                date = ifnull(date, excluded.date)",
+                date = ifnull(date, excluded.date),
+                thumbnail = excluded.thumbnail",
         params![&info.hash, &info.date, &info.thumb],
     )?;
     db.execute(
         "INSERT INTO location(file_id,backend_tag,path)
             SELECT rowid, ?, ? FROM file
-              WHERE hash = ? LIMIT 1;",
+              WHERE hash = ? LIMIT 1
+            ON CONFLICT(backend_tag, path) DO UPDATE SET
+              file_id = excluded.file_id",
         params![&marker, &relative, &info.hash],
     )?;
     Ok(())
@@ -115,5 +119,154 @@ impl Iterator for LooseIterator {
             Err(err) => Some(Err(anyhow!(err))),
             Ok(row) => Some(Ok(row)),
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use chrono::NaiveDate;
+
+    use crate::db;
+    use crate::model::FileInfo;
+
+    fn all_files(conn: &db::Connection) -> Vec<FileInfo> {
+        conn.prepare("SELECT hash, date, thumbnail FROM file")
+            .unwrap()
+            .query_map([], |row| {
+                Ok(FileInfo {
+                    hash: row.get_unwrap(0),
+                    date: row.get_unwrap(1),
+                    thumb: row.get_unwrap(2),
+                })
+            })
+            .unwrap()
+            .map(|x| x.unwrap())
+            .collect()
+    }
+
+    #[test]
+    fn upsert_changed_hash_at_location() {
+        // arrange
+
+        let marker: &str = "foo-marker";
+        let path: &str = "foo-dir/file.jpeg";
+        let hash_a = "fake-hash-a".to_string();
+        let hash_b = "fake-hash-b".to_string();
+        let date_2 = NaiveDate::from_ymd(2022, 1, 22).and_hms(16, 53, 14);
+
+        let conn = rusqlite::Connection::open_in_memory().unwrap();
+        db::init(&conn).unwrap();
+        db::upsert(
+            &conn,
+            &marker,
+            &path,
+            &FileInfo {
+                hash: hash_a.clone(),
+                date: None,
+                thumb: vec![b'A'],
+            },
+        )
+        .unwrap();
+        assert_eq!(db::exists(&conn, &marker, &path), Ok(true));
+        assert_eq!(
+            all_files(&conn),
+            vec![FileInfo {
+                hash: hash_a.clone(),
+                date: None,
+                thumb: vec![b'A']
+            }]
+        );
+
+        // act
+
+        db::upsert(
+            &conn,
+            &marker,
+            &path,
+            &FileInfo {
+                hash: hash_b.clone(),
+                date: Some(date_2),
+                thumb: vec![b'B'],
+            },
+        )
+        .unwrap();
+
+        // assert
+
+        assert_eq!(db::exists(&conn, &marker, &path), Ok(true));
+        assert_eq!(
+            all_files(&conn),
+            vec![
+                FileInfo {
+                    hash: hash_a.clone(),
+                    date: None,
+                    thumb: vec![b'A']
+                },
+                FileInfo {
+                    hash: hash_b.clone(),
+                    date: Some(date_2),
+                    thumb: vec![b'B']
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn upsert_changed_metadata_at_hash() {
+        // arrange
+
+        let marker: &str = "foo-marker";
+        let path: &str = "foo-dir/file.jpeg";
+        let hash = "fake-hash".to_string();
+        let date_2 = NaiveDate::from_ymd(2022, 1, 22).and_hms(16, 53, 14);
+
+        let conn = rusqlite::Connection::open_in_memory().unwrap();
+        db::init(&conn).unwrap();
+        db::upsert(
+            &conn,
+            &marker,
+            &path,
+            &FileInfo {
+                hash: hash.clone(),
+                date: None,
+                thumb: vec![b'A'],
+            },
+        )
+        .unwrap();
+        assert_eq!(db::exists(&conn, &marker, &path), Ok(true));
+        assert_eq!(
+            all_files(&conn),
+            vec![FileInfo {
+                hash: hash.clone(),
+                date: None,
+                thumb: vec![b'A']
+            }]
+        );
+
+        // act
+
+        db::upsert(
+            &conn,
+            &marker,
+            &path,
+            &FileInfo {
+                hash: hash.clone(),
+                date: Some(date_2),
+                thumb: vec![b'B'],
+            },
+        )
+        .unwrap();
+
+        // assert
+
+        assert_eq!(db::exists(&conn, &marker, &path), Ok(true));
+        assert_eq!(
+            all_files(&conn),
+            vec![FileInfo {
+                hash: hash.clone(),
+                date: Some(date_2),
+                thumb: vec![b'B']
+            }]
+        );
     }
 }
