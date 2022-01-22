@@ -2,7 +2,9 @@ use std::path::Path;
 use std::sync::{Arc, Mutex};
 
 use anyhow::Result;
-use rusqlite::{params, Connection};
+use rusqlite::{params, Connection, Error::QueryReturnedNoRows};
+
+use crate::interlude::*;
 
 // TODO[LATER]: use Arc<RwLock<T>> instead of Arc<Mutex<T>>
 pub type SyncedDb = Arc<Mutex<Connection>>;
@@ -66,4 +68,42 @@ pub fn upsert(
         params![&marker, &relative, &info.hash],
     )?;
     Ok(())
+}
+
+pub fn hashes(db: SyncedDb, marker: &str) -> impl Iterator<Item = Result<(String, String)>> {
+    LooseIterator {
+        db,
+        marker: marker.to_string(),
+        offset: 0,
+    }
+}
+
+struct LooseIterator {
+    // TODO[LATER]: verify if usize is the type matching sqlite expectation
+    db: SyncedDb,
+    marker: String,
+    offset: usize,
+}
+
+impl Iterator for LooseIterator {
+    type Item = Result<(String, String)>;
+    fn next(&mut self) -> Option<Self::Item> {
+        // TODO[LATER]: avoid unwrap?
+        let db = self.db.lock().unwrap();
+        let row = db.query_row(
+            "SELECT path, hash FROM location
+            LEFT JOIN file
+                ON location.file_id = file.rowid
+                WHERE backend_tag = ?
+                LIMIT 1 OFFSET ?",
+            params![&self.marker, &self.offset],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        );
+        self.offset += 1;
+        match row {
+            Err(QueryReturnedNoRows) => None,
+            Err(err) => Some(Err(anyhow!(err))),
+            Ok(row) => Some(Ok(row)),
+        }
+    }
 }
