@@ -1,7 +1,7 @@
 use std::ops::Range;
 use std::sync::{Arc, Mutex};
 
-use iced_graphics::{Backend, Color, Primitive, Rectangle, Renderer};
+use iced_graphics::{Backend, Background, Color, Primitive, Rectangle, Renderer};
 use iced_native::event::{self, Event};
 use iced_native::{layout, mouse, Clipboard, Layout, Length, Point, Size, Widget};
 use image::ImageDecoder;
@@ -15,8 +15,9 @@ pub struct Gallery {
     spacing: f32,
 
     // TODO[LATER]: usize or u32 or what?
-    // Note: first item in tuple is "first clicked", not "smaller of two"
-    selection: Option<(u32, u32)>,
+    // Note: first item in tuple is "first clicked", not "smaller of two">
+    // Range is inclusive on both sides.
+    selection: (u32, u32),
 }
 
 impl Gallery {
@@ -27,7 +28,7 @@ impl Gallery {
             tile_h: 200.0,
             spacing: 25.0,
 
-            selection: None,
+            selection: (0, 0),
         }
     }
 
@@ -144,7 +145,24 @@ where
         let mut view = vec![];
         let mut x = self.spacing;
         let mut y = self.spacing + (offset / columns) as f32 * (self.tile_h + self.spacing);
-        for row in file_iter {
+        for (i, row) in file_iter.enumerate() {
+            // Mark tile as selected when appropriate.
+            let i = offset + i as u32;
+            if i >= self.selection.0 && i <= self.selection.1 {
+                view.push(Primitive::Quad {
+                    bounds: Rectangle {
+                        x: x - self.spacing / 2.,
+                        y: y - self.spacing / 2.,
+                        width: self.tile_w + self.spacing,
+                        height: self.tile_h + self.spacing,
+                    },
+                    background: Background::Color(Color::from_rgb(0.5, 0.5, 1.)),
+                    border_radius: 0.,
+                    border_width: 0.,
+                    border_color: Color::WHITE,
+                })
+            }
+
             let file = row.unwrap();
 
             // Extract dimensions of thumbnail
