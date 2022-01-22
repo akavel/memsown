@@ -15,7 +15,8 @@ pub struct Gallery {
     spacing: f32,
 
     // TODO[LATER]: usize or u32 or what?
-    selection: Range<usize>,
+    // Note: first item in tuple is "first clicked", not "smaller of two"
+    selection: Option<(u32, u32)>,
 }
 
 impl Gallery {
@@ -26,7 +27,7 @@ impl Gallery {
             tile_h: 200.0,
             spacing: 25.0,
 
-            selection: (0..0),
+            selection: None,
         }
     }
 }
@@ -204,10 +205,16 @@ where
     ) -> event::Status {
         use iced::mouse::{Button, Event::*};
         match event {
-            Event::Mouse(ButtonPressed(Button::Left)) => println!("PRESS: {:?}", cursor_position),
-            Event::Mouse(CursorMoved { position }) => println!(" MOVE: {:?}", position),
+            Event::Mouse(ButtonPressed(Button::Left)) => {
+                // self.selection = Some((
+                println!("PRESS: {:?}", cursor_position);
+            }
+            Event::Mouse(CursorMoved { .. }) => {
+                println!(" MOVE: {:?}", cursor_position);
+                println!("bounds: {:?} pos: {:?}", layout.bounds(), layout.position());
+            }
             Event::Mouse(ButtonReleased(Button::Left)) => println!("RLASE: {:?}", cursor_position),
-            _ => (),
+            _ => return event::Status::Ignored,
         };
         // TODO: do we need to "invalidate" a region to ask to redraw?
         event::Status::Captured
