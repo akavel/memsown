@@ -95,7 +95,8 @@ fn stage1(i: usize, tree: &Tree, db: Arc<Mutex<DbConnection>>) -> Result<()> {
 
         // Calculate sha1 hash of the file contents.
         // TODO[LATER]: maybe switch to a secure hash (sha2 or other, see: https://github.com/RustCrypto/hashes)
-        let hash = format!("{:x}", Sha1::digest(&buf));
+        let hash = hash(&buf);
+        // let hash = format!("{:x}", Sha1::digest(&buf));
 
         // FIXME: if image is very small, it's probably a thumbnail already and we don't want to archive it
 
@@ -216,6 +217,13 @@ fn marker_read(file_path: &Path) -> Result<(PathBuf, String)> {
     let m: Marker = serde_json::from_reader(io::BufReader::new(file))?;
 
     Ok((parent.to_owned(), m.id))
+}
+
+/// Calculate a hash of the buf contents, and return it in a pretty-printed format for storing in
+/// the DB.
+pub fn hash(buf: &[u8]) -> String {
+    // TODO[LATER]: maybe switch to a secure hash (sha2 or other, see: https://github.com/RustCrypto/hashes)
+    format!("{:x}", Sha1::digest(&buf))
 }
 
 /// Try hard to find out some datetime info from either `exif` data, or `relative_path` of the file.
