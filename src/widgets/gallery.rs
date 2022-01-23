@@ -14,6 +14,8 @@ pub struct Gallery {
     tile_h: f32,
     spacing: f32,
 
+    // FIXME: should expose helper `State` struct instead, to be stored in user's App (see:
+    // `iced/examples/todos/`, how `text_input::State` is stored)
     // TODO[LATER]: usize or u32 or what?
     // Note: first item in tuple is "first clicked", not "smaller of two">
     // Range is inclusive on both sides.
