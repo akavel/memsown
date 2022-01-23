@@ -105,6 +105,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "chrono",
+ "derivative",
  "iced",
  "iced_graphics",
  "iced_native",
