@@ -3,16 +3,16 @@ use iced::Sandbox;
 fn main() -> iced::Result {
     println!("Hello preview");
 
-    Preview::run(iced::Settings::default())
+    ShowPreview::run(iced::Settings::default())
 }
 
-struct Preview {}
+struct ShowPreview {}
 
-impl iced::Sandbox for Preview {
+impl iced::Sandbox for ShowPreview {
     type Message = ();
 
-    fn new() -> Preview {
-        Preview {}
+    fn new() -> ShowPreview {
+        ShowPreview {}
     }
 
     fn title(&self) -> String {
