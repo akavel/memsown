@@ -62,7 +62,7 @@ mod tag {
     use derivative::Derivative;
     use iced::alignment::Alignment;
     use iced::button::{self, Button};
-    use iced::{Row, Text};
+    use iced::{Length, Row, Text};
 
     use backer::res;
 
@@ -103,7 +103,7 @@ mod tag {
                     // .style(style::Button::Icon)
                     .padding(10),
                 )
-                .push(Text::new(&self.name))
+                .push(Text::new(&self.name).width(Length::Fill))
                 .push(
                     Button::new(
                         &mut self.state.hidden_button,
