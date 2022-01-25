@@ -64,6 +64,8 @@ mod tag {
     use iced::button::{self, Button};
     use iced::{Row, Text};
 
+    use backer::res;
+
     type Message = ();
 
     pub struct Tag {
@@ -91,14 +93,11 @@ mod tag {
                 .push(
                     Button::new(
                         &mut self.state.selected_button,
-                        Text::new(match self.selected {
-                            // None => "~",
-                            None => "▩", // "⊡"
-                            // Some(true) => "✓",
-                            Some(true) => "☑", // "✅"
-                            // Some(false) => "-",
-                            Some(false) => "☐",
-                        }),
+                        match self.selected {
+                            None => res::icon_minus_squared_alt(),
+                            Some(true) => res::icon_ok_squared(),
+                            Some(false) => res::icon_check_empty(),
+                        },
                     )
                     // TODO: .on_press(TODO)
                     // .style(style::Button::Icon)
@@ -108,10 +107,10 @@ mod tag {
                 .push(
                     Button::new(
                         &mut self.state.hidden_button,
-                        Text::new(match self.hidden {
-                            false => "👁",
-                            true => "🛇",
-                        }),
+                        match self.hidden {
+                            false => res::icon_eye(),
+                            true => res::icon_eye_off(),
+                        },
                     )
                     // TODO: .on_press(TODO)
                     // .style(style::Button::Icon)

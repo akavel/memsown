@@ -5,5 +5,6 @@ pub mod imaging;
 pub mod interlude;
 pub mod model;
 pub mod pathwalk;
+pub mod res;
 pub mod scanning;
 pub mod widgets;
