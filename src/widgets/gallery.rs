@@ -84,7 +84,7 @@ where
     }
 
     fn layout(&self, _: &Renderer<B>, limits: &layout::Limits) -> layout::Node {
-        // println!("MCDBG limits: {:?}", limits);
+        // println!("MCDBG Gallery::layout(limits: {:?})", limits);
 
         let db = self.db.lock().unwrap();
         let n_files: u32 = db
@@ -93,6 +93,7 @@ where
         drop(db);
 
         let width = limits.max().width;
+        // println!("MCDBG width={:?} limits={:?}", width, limits);
         let columns = ((width - self.spacing) / (self.tile_w + self.spacing)) as u32;
         let rows: u32 = (n_files + columns - 1) / columns;
 
@@ -259,12 +260,12 @@ where
                     let i = self.xy_to_offset(&layout, cursor_position);
                     self.selection.1 = i;
                 }
-                println!(" MOVE: {:?}", cursor_position);
-                println!("bounds: {:?} pos: {:?}", layout.bounds(), layout.position());
+                // println!(" MOVE: {:?}", cursor_position);
+                // println!("bounds: {:?} pos: {:?}", layout.bounds(), layout.position());
             }
             Event::Mouse(ButtonReleased(Button::Left)) => {
                 self.selecting = false;
-                println!("RLASE: {:?}", cursor_position);
+                // println!("RLASE: {:?}", cursor_position);
             }
             // FIXME: cancel selection when cursor exits window
             _ => return event::Status::Ignored,
