@@ -1,9 +1,13 @@
 use std::sync::Arc;
 
 use iced::widget::scrollable as iced_scrollable;
+use iced::Row;
 
 use crate::db::SyncedDb;
-use crate::widgets::gallery::Gallery;
+use crate::widgets::{
+    gallery::Gallery,
+    tags::{self, tag},
+};
 
 // FIXME: duplicated between here and src/bin/view.rs !!!
 pub struct Gui {
@@ -11,10 +15,16 @@ pub struct Gui {
 
     // States of sub-widgets
     scrollable: iced_scrollable::State,
+    tags: tags::Panel,
+}
+
+#[derive(Debug, Clone)]
+pub enum Message {
+    TagsMessage(tags::Message),
 }
 
 impl iced::Application for Gui {
-    type Message = ();
+    type Message = Message;
     type Flags = SyncedDb;
     type Executor = iced::executor::Default;
 
@@ -23,6 +33,20 @@ impl iced::Application for Gui {
             Gui {
                 db: flags,
                 scrollable: iced_scrollable::State::new(),
+                tags: tags::Panel::new(&vec![
+                    tag::Tag {
+                        name: "hidden".to_string(),
+                        selected: None,
+                        hidden: true,
+                        state: tag::State::default(),
+                    },
+                    tag::Tag {
+                        name: "tag 2".to_string(),
+                        selected: Some(true),
+                        hidden: false,
+                        state: tag::State::default(),
+                    },
+                ]),
             },
             iced::Command::none(),
         )
@@ -32,8 +56,10 @@ impl iced::Application for Gui {
         String::from("Backer") // TODO[LATER]: description and/or status info and/or version
     }
 
-    fn update(&mut self, _message: Self::Message) -> iced::Command<Self::Message> {
-        // FIXME
+    fn update(&mut self, message: Self::Message) -> iced::Command<Self::Message> {
+        match message {
+            Message::TagsMessage(msg) => self.tags.update(msg),
+        };
 
         iced::Command::none()
     }
@@ -43,8 +69,14 @@ impl iced::Application for Gui {
         // FIXME: Milestone: add preview window on click
         // FIXME: Milestone: show some info about where img is present
 
-        iced_scrollable::Scrollable::new(&mut self.scrollable)
-            .push(Gallery::new(Arc::clone(&self.db)))
+        iced::Row::new()
+            .push(
+                iced_scrollable::Scrollable::new(&mut self.scrollable)
+                    .push(Gallery::new(Arc::clone(&self.db)))
+                    // .height(iced::Length::Fill)
+                    .width(iced::Length::Fill),
+            )
+            .push(self.tags.view().map(move |msg| Message::TagsMessage(msg)))
             .into()
     }
 }

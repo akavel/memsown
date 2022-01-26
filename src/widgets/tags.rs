@@ -83,6 +83,7 @@ pub mod tag {
 
         pub fn view(&mut self) -> iced::Element<Message> {
             // TODO[LATER]: handle `name` editing
+            // TODO[LATER]: make buttons align vertically among others
             Row::new()
                 .spacing(20)
                 .align_items(Alignment::Center)
@@ -102,7 +103,7 @@ pub mod tag {
                     // TODO: .style(style::Button::Icon) - see: iced/examples/todos/
                     .padding(10),
                 )
-                .push(Text::new(&self.name).width(Length::Fill))
+                .push(Text::new(&self.name)) //.width(Length::Fill))
                 .push(
                     Button::new(
                         &mut self.state.hidden_button,
