@@ -8,35 +8,39 @@ fn main() -> iced::Result {
 
 struct ShowTags {
     // FIXME: move to `State` struct
-    // tags: Vec<tag::Tag>,
-    t0: tag::Tag,
-    t1: tag::Tag,
-    t2: tag::Tag,
+    tags: Vec<tag::Tag>,
+}
+
+#[derive(Debug, Clone)]
+enum Message {
+    TagMessage(usize, tag::Message),
 }
 
 impl iced::Sandbox for ShowTags {
-    type Message = ();
+    type Message = Message;
 
     fn new() -> Self {
         Self {
-            t0: tag::Tag {
-                name: "hidden".to_string(),
-                selected: None,
-                hidden: true,
-                state: tag::State::default(),
-            },
-            t1: tag::Tag {
-                name: "tag 2".to_string(),
-                selected: Some(true),
-                hidden: false,
-                state: tag::State::default(),
-            },
-            t2: tag::Tag {
-                name: "tag 3".to_string(),
-                selected: Some(false),
-                hidden: false,
-                state: tag::State::default(),
-            },
+            tags: vec![
+                tag::Tag {
+                    name: "hidden".to_string(),
+                    selected: None,
+                    hidden: true,
+                    state: tag::State::default(),
+                },
+                tag::Tag {
+                    name: "tag 2".to_string(),
+                    selected: Some(true),
+                    hidden: false,
+                    state: tag::State::default(),
+                },
+                tag::Tag {
+                    name: "tag 3".to_string(),
+                    selected: Some(false),
+                    hidden: false,
+                    state: tag::State::default(),
+                },
+            ],
         }
     }
 
@@ -44,17 +48,27 @@ impl iced::Sandbox for ShowTags {
         String::from("Backer tags panel") // FIXME[LATER]
     }
 
-    fn update(&mut self, _message: Self::Message) {
-        // FIXME
+    fn update(&mut self, message: Self::Message) {
+        match message {
+            Message::TagMessage(i, tag_message) => {
+                if let Some(tag) = self.tags.get_mut(i) {
+                    tag.update(tag_message);
+                }
+            }
+        }
     }
 
     fn view(&mut self) -> iced::Element<Self::Message> {
-        Column::new()
-            .spacing(20)
-            .push(self.t0.view())
-            .push(self.t1.view())
-            .push(self.t2.view())
-            .into()
+        let tags: iced::Element<_> = self
+            .tags
+            .iter_mut()
+            .enumerate()
+            .fold(Column::new().spacing(20), |col, (i, tag)| {
+                col.push(tag.view().map(move |msg| Message::TagMessage(i, msg)))
+            })
+            .into();
+        // TODO: wrap in Scrollable
+        tags
     }
 }
 
@@ -66,7 +80,11 @@ mod tag {
 
     use backer::res;
 
-    type Message = ();
+    #[derive(Debug, Clone)]
+    pub enum Message {
+        SetSelected(bool),
+        SetHidden(bool),
+    }
 
     pub struct Tag {
         pub name: String,
@@ -85,6 +103,17 @@ mod tag {
     }
 
     impl Tag {
+        pub fn update(&mut self, message: Message) {
+            match message {
+                Message::SetSelected(selected) => {
+                    self.selected = Some(selected);
+                }
+                Message::SetHidden(hidden) => {
+                    self.hidden = hidden;
+                }
+            }
+        }
+
         pub fn view(&mut self) -> iced::Element<Message> {
             // TODO[LATER]: handle `name` editing
             Row::new()
@@ -99,8 +128,11 @@ mod tag {
                             Some(false) => res::icon_check_empty(),
                         },
                     )
-                    // TODO: .on_press(TODO)
-                    // .style(style::Button::Icon)
+                    .on_press(Message::SetSelected(match self.selected {
+                        None | Some(false) => true,
+                        Some(true) => false,
+                    }))
+                    // TODO: .style(style::Button::Icon) - see: iced/examples/todos/
                     .padding(10),
                 )
                 .push(Text::new(&self.name).width(Length::Fill))
@@ -112,8 +144,8 @@ mod tag {
                             true => res::icon_eye_off(),
                         },
                     )
-                    // TODO: .on_press(TODO)
-                    // .style(style::Button::Icon)
+                    .on_press(Message::SetHidden(!self.hidden))
+                    // TODO: .style(style::Button::Icon) - see: iced/examples/todos/
                     .padding(10),
                 )
                 .into()
