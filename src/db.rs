@@ -28,13 +28,25 @@ pub fn init(db: &Connection) -> rusqlite::Result<()> {
 
           CREATE TABLE IF NOT EXISTS location (
             file_id INTEGER NOT NULL,
-            backend_tag STRING NOT NULL,
-            path STRING NOT NULL
+            backend_tag STRING NOT NULL, -- FIXME[LATER]: change to TEXT (https://stackoverflow.com/a/42264331/98528)
+            path STRING NOT NULL         -- FIXME[LATER]: change to TEXT (https://stackoverflow.com/a/42264331/98528)
           );
           CREATE INDEX IF NOT EXISTS
             location_fileID ON location (file_id);
           CREATE UNIQUE INDEX IF NOT EXISTS
             location_perBackend ON location (backend_tag, path);
+
+          CREATE TABLE IF NOT EXISTS tag (
+            name TEXT UNIQUE NOT NULL
+              CHECK(length(name) > 0)
+          );
+
+          CREATE TABLE IF NOT EXISTS file_tag (
+            file_id INTEGER NOT NULL,
+            tag_id INTEGER NOT NULL
+          );
+          CREATE UNIQUE INDEX IF NOT EXISTS
+            file_tag_unique ON file_tag (file_id, tag_id);
         ",
     )
 }
