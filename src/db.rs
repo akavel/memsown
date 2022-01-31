@@ -38,8 +38,12 @@ pub fn init(db: &Connection) -> rusqlite::Result<()> {
 
           CREATE TABLE IF NOT EXISTS tag (
             name TEXT UNIQUE NOT NULL
-              CHECK(length(name) > 0)
+              CHECK(length(name) > 0),
+            hidden BOOLEAN DEFAULT FALSE NOT NULL
           );
+          INSERT INTO tag(name, hidden) VALUES
+              ('hidden', TRUE)
+            ON CONFLICT(name) DO NOTHING;
 
           CREATE TABLE IF NOT EXISTS file_tag (
             file_id INTEGER NOT NULL,
