@@ -95,8 +95,13 @@ impl<Message> Gallery<Message> {
         ((layout.bounds().width - self.spacing) / (self.tile_w + self.spacing)) as u32
     }
 
-    fn xy_to_offset(&self, layout: &Layout, p: Point) -> u32 {
+    fn xy_to_offset(&self, layout: &Layout, p: Point) -> Option<u32> {
         // Note: all calculations in "full" layout coordinates, not in a virtual viewport window.
+
+        if p.x < 0.0 || p.y < 0.0 {
+            return None;
+        }
+
         let x_without_left_margin = 0f32.max(p.x - self.spacing);
         let col_w = self.tile_w + self.spacing;
         let col = (x_without_left_margin / col_w) as u32;
@@ -105,7 +110,7 @@ impl<Message> Gallery<Message> {
         let row_h = self.tile_h + self.spacing;
         let row = (y_without_top_margin / row_h) as u32;
 
-        row * self.columns(&layout) + col
+        Some(row * self.columns(&layout) + col)
     }
 
     fn offset_selected(&self, offset: u32) -> bool {
@@ -177,7 +182,9 @@ where
         let columns = self.columns(&layout);
 
         // Index of first thumbnail to draw in top-left corner
-        let offset = self.xy_to_offset(&layout, Point::new(0., viewport.y));
+        let offset = self
+            .xy_to_offset(&layout, Point::new(0., viewport.y))
+            .unwrap_or(0);
         let limit = (2 + (viewport.height / (self.tile_h + self.spacing)) as u32) * columns;
 
         let db = self.db.lock().unwrap();
@@ -286,9 +293,7 @@ where
 
         // Show locations of image file in a hovering tooltip at cursor position.
         // println!("cursor: {:?}", cursor);
-        let cursor_over_gallery = cursor.x >= 0.0 && cursor.y >= 0.0;
-        if cursor_over_gallery {
-            let hovered_offset = self.xy_to_offset(&layout, cursor);
+        if let Some(hovered_offset) = self.xy_to_offset(&layout, cursor) {
             // println!("hovered_offset: {:?}", hovered_offset);
             let locations = db
                 .prepare_cached(
@@ -354,15 +359,17 @@ where
         let state: &mut InternalState = tree.into();
         match event {
             Event::Mouse(ButtonPressed(Button::Left)) => {
-                let i = self.xy_to_offset(&layout, cursor_position);
-                self.selection = Selection::single(i);
-                state.selecting = true;
-                // println!("PRESS: {:?}", cursor_position);
+                if let Some(i) = self.xy_to_offset(&layout, cursor_position) {
+                    self.selection = Selection::single(i);
+                    state.selecting = true;
+                    // println!("PRESS: {:?} i={}", cursor_position, i);
+                }
             }
             Event::Mouse(CursorMoved { .. }) => {
                 if state.selecting {
-                    let i = self.xy_to_offset(&layout, cursor_position);
-                    self.selection.last = i;
+                    if let Some(i) = self.xy_to_offset(&layout, cursor_position) {
+                        self.selection.last = i;
+                    }
                 }
                 // println!(" MOVE: {:?}", cursor_position);
                 // println!("bounds: {:?} pos: {:?}", layout.bounds(), layout.position());
