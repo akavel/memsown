@@ -57,10 +57,7 @@ impl iced::Application for Gui {
     }
 
     fn update(&mut self, message: Self::Message) -> iced::Command<Self::Message> {
-        match message {
-            Message::TagsMessage(msg) => self.tags.update(msg),
-        };
-
+        self.update_tags(message);
         iced::Command::none()
     }
 
@@ -76,7 +73,19 @@ impl iced::Application for Gui {
                     // .height(iced::Length::Fill)
                     .width(iced::Length::Fill),
             )
-            .push(self.tags.view().map(move |msg| Message::TagsMessage(msg)))
+            .push(view_tags(&mut self.tags))
             .into()
+    }
+}
+
+fn view_tags(tags: &mut tags::Panel) -> impl Into<iced::Element<Message>> {
+    tags.view().map(move |msg| Message::TagsMessage(msg))
+}
+
+impl Gui {
+    fn update_tags(&mut self, message: Message) {
+        match message {
+            Message::TagsMessage(msg) => self.tags.update(msg),
+        };
     }
 }
