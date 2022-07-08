@@ -3,8 +3,9 @@ use std::sync::{Arc, Mutex};
 
 use iced_graphics::{Backend, Background, Color, Primitive, Rectangle, Renderer};
 use iced_native::event::{self, Event};
-use iced_native::{layout, mouse, Clipboard, Layout, Length, Point, Size, Widget};
+use iced_native::{layout, mouse, Clipboard, Layout, Length, Point, Size, Text, Widget};
 use image::ImageDecoder;
+use itertools::Itertools;
 use rusqlite::params;
 
 pub struct Gallery {
@@ -61,7 +62,7 @@ impl Gallery {
 
 impl<Message, B> Widget<Message, Renderer<B>> for Gallery
 where
-    B: Backend,
+    B: Backend + iced_graphics::backend::Text,
 {
     fn width(&self) -> Length {
         Length::Fill
@@ -104,10 +105,10 @@ where
 
     fn draw(
         &self,
-        _: &mut Renderer<B>,
+        renderer: &mut Renderer<B>,
         _: &iced_graphics::Defaults,
         layout: Layout<'_>,
-        _cursor: Point,
+        cursor: Point,
         viewport: &iced_graphics::Rectangle,
     ) -> (Primitive, mouse::Interaction) {
         // TODO(akavel): contribute below explanation to iced_native::Widget docs
@@ -230,6 +231,63 @@ where
             }
         }
 
+        // Show locations of image file in a hovering tooltip at cursor position.
+        // println!("cursor: {:?}", cursor);
+        let cursor_over_gallery = cursor.x >= 0.0 && cursor.y >= 0.0;
+        if cursor_over_gallery {
+            let hovered_offset = self.xy_to_offset(&layout, cursor);
+            // println!("hovered_offset: {:?}", hovered_offset);
+            let locations = db
+                .prepare_cached(
+                    r"SELECT backend_tag, path
+                        FROM location
+                        WHERE file_id = (SELECT rowid
+                            FROM file
+                            ORDER BY date
+                            LIMIT 1 OFFSET ?)
+                        ORDER BY backend_tag ASC, path ASC",
+                )
+                .unwrap()
+                .query_map([hovered_offset], |row| {
+                    let backend: String = row.get_unwrap(0);
+                    let path: String = row.get_unwrap(1);
+                    Ok(backend + ": " + path.as_str())
+                })
+                .unwrap()
+                .map(|x: Result<String, _>| x.unwrap())
+                .join("\n");
+            // Note: taken from Tooltip widget
+            let text_layout = Widget::<(), Renderer<B>>::layout(
+                &Text::new(locations.as_str()),
+                renderer,
+                &layout::Limits::new(Size::ZERO, viewport.size()),
+                // .pad(Padding::new(padding)),
+            );
+            let text_bounds = text_layout.bounds();
+            let tooltip_bounds = Rectangle {
+                x: cursor.x,
+                y: cursor.y,
+                width: text_bounds.width,
+                height: text_bounds.height,
+            };
+            view.push(Primitive::Quad {
+                bounds: tooltip_bounds,
+                background: Background::Color(Color::from_rgb(0.9, 0.9, 0.7)),
+                border_radius: 0.,
+                border_width: 0.,
+                border_color: Color::WHITE,
+            });
+            view.push(Primitive::Text {
+                content: locations,
+                bounds: tooltip_bounds,
+                color: Color::BLACK,
+                size: 12.0,
+                font: iced_graphics::Font::Default,
+                horizontal_alignment: iced_graphics::alignment::Horizontal::Left,
+                vertical_alignment: iced_graphics::alignment::Vertical::Top,
+            });
+        }
+
         // TODO[LATER]: show text message if no thumbnails in DB
         (
             Primitive::Group { primitives: view },
@@ -277,7 +335,7 @@ where
 
 impl<'a, Message, B> From<Gallery> for iced_native::Element<'a, Message, Renderer<B>>
 where
-    B: Backend,
+    B: Backend + iced_graphics::backend::Text,
 {
     fn from(v: Gallery) -> iced_native::Element<'a, Message, Renderer<B>> {
         iced_native::Element::new(v)

@@ -34,4 +34,5 @@ iced_native = { git = "https://github.com/iced-rs/iced", rev = "569aff3" }
 iced_graphics = { git = "https://github.com/iced-rs/iced", rev = "569aff3" }
 #iced_wgpu = "0.4.0"
 iced_wgpu = { git = "https://github.com/iced-rs/iced", rev = "569aff3" }
+itertools = "0.10"
 

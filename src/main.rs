@@ -9,6 +9,7 @@ use backer::gui::Gui;
 use backer::interlude::*;
 use backer::scanning::*;
 
+// TODO: migrate to iced v0.4.0 with its new features & architecture
 // TODO[LATER]: load marker_paths from JSON
 // TODO: load date-from-path regexps from JSON:
 //   {"paths-to-dates": {"sf7-c-fotki": {".*(20\d\d)-(\d\d)-(\d\d)": "\1-\2-\3"}}}
