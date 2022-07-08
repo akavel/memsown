@@ -1,6 +1,7 @@
 use std::ops::Range;
 use std::sync::{Arc, Mutex};
 
+use derive_more::{Deref, DerefMut};
 use iced_graphics::{Backend, Background, Color, Primitive, Rectangle, Renderer};
 use iced_native::event::{self, Event};
 use iced_native::{layout, mouse, Clipboard, Layout, Length, Point, Size, Text, Widget};
@@ -8,15 +9,9 @@ use image::ImageDecoder;
 use itertools::Itertools;
 use rusqlite::params;
 
-pub struct Gallery {
-    // NOTE: when modifying, make sure to adjust Widget::hash_layout() if needed
+// See also: `iced/examples/todos/`, how `text_input::State` is stored
+pub struct State {
     db: Arc<Mutex<rusqlite::Connection>>,
-    tile_w: f32,
-    tile_h: f32,
-    spacing: f32,
-
-    // FIXME: should expose helper `State` struct instead, to be stored in user's App (see:
-    // `iced/examples/todos/`, how `text_input::State` is stored)
     // TODO[LATER]: usize or u32 or what?
     // Note: first item in tuple is "first clicked", not "smaller of two">
     // Range is inclusive on both sides.
@@ -24,16 +19,34 @@ pub struct Gallery {
     selecting: bool,
 }
 
-impl Gallery {
+impl State {
     pub fn new(db: Arc<Mutex<rusqlite::Connection>>) -> Self {
         Self {
             db,
+            selection: (0, 0),
+            selecting: false,
+        }
+    }
+}
+
+#[derive(Deref, DerefMut)]
+pub struct Gallery<'a> {
+    // NOTE: when modifying the struct, make sure to adjust Widget::hash_layout() if needed
+    #[deref]
+    #[deref_mut]
+    state: &'a mut State,
+    tile_w: f32,
+    tile_h: f32,
+    spacing: f32,
+}
+
+impl<'a> Gallery<'a> {
+    pub fn new(state: &'a mut State) -> Self {
+        Self {
+            state,
             tile_w: 200.0,
             tile_h: 200.0,
             spacing: 25.0,
-
-            selection: (0, 0),
-            selecting: false,
         }
     }
 
@@ -60,7 +73,7 @@ impl Gallery {
     }
 }
 
-impl<Message, B> Widget<Message, Renderer<B>> for Gallery
+impl<'a, Message, B> Widget<Message, Renderer<B>> for Gallery<'a>
 where
     B: Backend + iced_graphics::backend::Text,
 {
@@ -333,11 +346,11 @@ where
     }
 }
 
-impl<'a, Message, B> From<Gallery> for iced_native::Element<'a, Message, Renderer<B>>
+impl<'a, Message, B> From<Gallery<'a>> for iced_native::Element<'a, Message, Renderer<B>>
 where
     B: Backend + iced_graphics::backend::Text,
 {
-    fn from(v: Gallery) -> iced_native::Element<'a, Message, Renderer<B>> {
+    fn from(v: Gallery<'a>) -> iced_native::Element<'a, Message, Renderer<B>> {
         iced_native::Element::new(v)
     }
 }

@@ -5,7 +5,7 @@ use iced::Row;
 
 use crate::db::SyncedDb;
 use crate::widgets::{
-    gallery::Gallery,
+    gallery::{self, Gallery},
     tags::{self, tag},
 };
 
@@ -15,6 +15,7 @@ pub struct Gui {
 
     // States of sub-widgets
     scrollable: iced_scrollable::State,
+    gallery: gallery::State,
     tags: tags::Panel,
 }
 
@@ -28,10 +29,11 @@ impl iced::Application for Gui {
     type Flags = SyncedDb;
     type Executor = iced::executor::Default;
 
-    fn new(flags: SyncedDb) -> (Gui, iced::Command<Self::Message>) {
+    fn new(db: SyncedDb) -> (Gui, iced::Command<Self::Message>) {
         let gui = Gui {
-            db: flags,
+            db: Arc::clone(&db),
             scrollable: iced_scrollable::State::new(),
+            gallery: gallery::State::new(db),
             tags: tags::Panel::new(&vec![
                 tag::Tag {
                     name: "hidden".to_string(),
@@ -70,7 +72,7 @@ impl iced::Application for Gui {
         iced::Row::new()
             .push(
                 iced_scrollable::Scrollable::new(&mut self.scrollable)
-                    .push(Gallery::new(Arc::clone(&self.db)))
+                    .push(Gallery::new(&mut self.gallery))
                     // .height(iced::Length::Fill)
                     .width(iced::Length::Fill),
             )
