@@ -17,10 +17,12 @@ anyhow = "1.0"
 chrono = "0.4"
 derivative = "2.2"
 derive_more = "0.99"
-#iced = { version = "0.3", features = ["image"] }
-iced = { git = "https://github.com/iced-rs/iced", rev = "569aff3", features = ["image"] }
+# iced = { version = "0.3", features = ["image"] }
+iced = { version = "0.4", features = ["image"] }
+# iced = { git = "https://github.com/iced-rs/iced", rev = "569aff3", features = ["image"] }
 ifmt = "0.3.3"
 image = { version = "0.23", default-features = false, features = ["jpeg_rayon"] }
+itertools = "0.10"
 kamadak-exif = "0.5"
 path-slash = "0.1"
 rayon = "1.5"
@@ -34,9 +36,11 @@ thiserror = "1.0"
 toml = "0.5"
 walkdir = "2.3"
 # Required for defining custom widgets
-iced_native = { git = "https://github.com/iced-rs/iced", rev = "569aff3" }
-iced_graphics = { git = "https://github.com/iced-rs/iced", rev = "569aff3" }
+iced_native = "0.5"
+iced_graphics = "0.3"
+iced_wgpu = "0.5"
+# iced_native = { git = "https://github.com/iced-rs/iced", rev = "569aff3" }
+# iced_graphics = { git = "https://github.com/iced-rs/iced", rev = "569aff3" }
 #iced_wgpu = "0.4.0"
-iced_wgpu = { git = "https://github.com/iced-rs/iced", rev = "569aff3" }
-itertools = "0.10"
+# iced_wgpu = { git = "https://github.com/iced-rs/iced", rev = "569aff3" }
 

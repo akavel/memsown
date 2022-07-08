@@ -3,8 +3,12 @@ use std::sync::{Arc, Mutex};
 
 use derive_more::{Deref, DerefMut};
 use iced_graphics::{Backend, Background, Color, Primitive, Rectangle, Renderer};
+use iced_native::alignment;
 use iced_native::event::{self, Event};
-use iced_native::{layout, mouse, Clipboard, Layout, Length, Point, Size, Text, Widget};
+use iced_native::image as iced_image;
+use iced_native::renderer::{self, Quad};
+use iced_native::text::{self, Text};
+use iced_native::{layout, mouse, Clipboard, Layout, Length, Point, Shell, Size, Widget};
 use image::ImageDecoder;
 use itertools::Itertools;
 use rusqlite::params;
@@ -31,7 +35,6 @@ impl State {
 
 #[derive(Deref, DerefMut)]
 pub struct Gallery<'a, Message> {
-    // NOTE: when modifying the struct, make sure to adjust Widget::hash_layout() if needed
     #[deref]
     #[deref_mut]
     state: &'a mut State,
@@ -80,9 +83,10 @@ impl<'a, Message> Gallery<'a, Message> {
     }
 }
 
-impl<'a, Message, B> Widget<Message, Renderer<B>> for Gallery<'a, Message>
+impl<'a, Message, Renderer> Widget<Message, Renderer> for Gallery<'a, Message>
 where
-    B: Backend + iced_graphics::backend::Text,
+    Renderer: text::Renderer<Font = iced_native::Font>
+        + iced_image::Renderer<Handle = iced_image::Handle>,
 {
     fn width(&self) -> Length {
         Length::Fill
@@ -92,19 +96,7 @@ where
         Length::Fill
     }
 
-    fn hash_layout(&self, hasher: &mut iced_native::Hasher) {
-        use std::hash::Hash;
-
-        let db = self.db.lock().unwrap();
-        let n_files: i32 = db
-            .query_row("SELECT COUNT(*) FROM file", [], |row| row.get(0))
-            .unwrap();
-        drop(db);
-
-        n_files.hash(hasher);
-    }
-
-    fn layout(&self, _: &Renderer<B>, limits: &layout::Limits) -> layout::Node {
+    fn layout(&self, _: &Renderer, limits: &layout::Limits) -> layout::Node {
         // println!("MCDBG Gallery::layout(limits: {:?})", limits);
 
         let db = self.db.lock().unwrap();
@@ -125,12 +117,12 @@ where
 
     fn draw(
         &self,
-        renderer: &mut Renderer<B>,
-        _: &iced_graphics::Defaults,
+        renderer: &mut Renderer,
+        _style: &renderer::Style,
         layout: Layout<'_>,
         cursor: Point,
         viewport: &iced_graphics::Rectangle,
-    ) -> (Primitive, mouse::Interaction) {
+    ) {
         // TODO(akavel): contribute below explanation to iced_native::Widget docs
         // Note(akavel): from discord discussion:
         //  hecrj: viewport is the visible area of the layout bounds.
@@ -173,24 +165,25 @@ where
         // println!("{:?} {:?}", layout.bounds(), &viewport);
 
         let mut last_date = String::new();
-        let mut view = vec![];
         let mut x = self.spacing;
         let mut y = self.spacing + (offset / columns) as f32 * (self.tile_h + self.spacing);
         for (i, row) in file_iter.enumerate() {
             // Mark tile as selected when appropriate.
             if self.offset_selected(offset + i as u32) {
-                view.push(Primitive::Quad {
-                    bounds: Rectangle {
-                        x: x - self.spacing / 2.,
-                        y: y - self.spacing / 2.,
-                        width: self.tile_w + self.spacing,
-                        height: self.tile_h + self.spacing,
+                renderer.fill_quad(
+                    Quad {
+                        bounds: Rectangle {
+                            x: x - self.spacing / 2.,
+                            y: y - self.spacing / 2.,
+                            width: self.tile_w + self.spacing,
+                            height: self.tile_h + self.spacing,
+                        },
+                        border_radius: 0.,
+                        border_width: 0.,
+                        border_color: Color::WHITE,
                     },
-                    background: Background::Color(Color::from_rgb(0.5, 0.5, 1.)),
-                    border_radius: 0.,
-                    border_width: 0.,
-                    border_color: Color::WHITE,
-                })
+                    Color::from_rgb(0.5, 0.5, 1.),
+                );
             }
 
             let file = row.unwrap();
@@ -206,15 +199,15 @@ where
             let align_x = (self.tile_w - w / scale) / 2.0;
             let align_y = (self.tile_h - h / scale) / 2.0;
 
-            view.push(Primitive::Image {
-                handle: iced_native::image::Handle::from_memory(file.thumb),
-                bounds: Rectangle {
+            renderer.draw(
+                iced_image::Handle::from_memory(file.thumb),
+                Rectangle {
                     x: x + align_x,
                     y: y + align_y,
                     width: w,
                     height: h,
                 },
-            });
+            );
 
             // Display date header if necessary
             // TODO[LATER]: start 1 row earlier to make sure date is not displayed too greedily
@@ -224,8 +217,8 @@ where
             };
             if date != last_date {
                 last_date = date;
-                view.push(Primitive::Text {
-                    content: last_date.clone(),
+                renderer.fill_text(Text {
+                    content: last_date.as_str(),
                     bounds: Rectangle {
                         x: x - 5.0,
                         y: y - self.spacing + 5.0,
@@ -234,9 +227,9 @@ where
                     },
                     color: Color::BLACK,
                     size: 20.0,
-                    font: iced_graphics::Font::Default,
-                    horizontal_alignment: iced_graphics::alignment::Horizontal::Left,
-                    vertical_alignment: iced_graphics::alignment::Vertical::Top,
+                    font: iced_native::Font::Default,
+                    horizontal_alignment: alignment::Horizontal::Left,
+                    vertical_alignment: alignment::Vertical::Top,
                 });
             }
 
@@ -276,43 +269,35 @@ where
                 .unwrap()
                 .map(|x: Result<String, _>| x.unwrap())
                 .join("\n");
-            // Note: taken from Tooltip widget
-            let text_layout = Widget::<(), Renderer<B>>::layout(
-                &Text::new(locations.as_str()),
-                renderer,
-                &layout::Limits::new(Size::ZERO, viewport.size()),
-                // .pad(Padding::new(padding)),
-            );
-            let text_bounds = text_layout.bounds();
-            let tooltip_bounds = Rectangle {
-                x: cursor.x,
-                y: cursor.y,
-                width: text_bounds.width,
-                height: text_bounds.height,
+            let text = {
+                let content = locations.as_str();
+                let size = 12u16;
+                let font = iced_graphics::Font::Default;
+                let bounds = Size::INFINITY;
+                let (w, h) = renderer.measure(content, size, font, bounds);
+                Text {
+                    content,
+                    bounds: Rectangle::new(cursor, Size::new(w, h)),
+                    color: Color::BLACK,
+                    size: size.into(),
+                    font,
+                    horizontal_alignment: alignment::Horizontal::Left,
+                    vertical_alignment: alignment::Vertical::Top,
+                }
             };
-            view.push(Primitive::Quad {
-                bounds: tooltip_bounds,
-                background: Background::Color(Color::from_rgb(0.9, 0.9, 0.7)),
-                border_radius: 0.,
-                border_width: 0.,
-                border_color: Color::WHITE,
-            });
-            view.push(Primitive::Text {
-                content: locations,
-                bounds: tooltip_bounds,
-                color: Color::BLACK,
-                size: 12.0,
-                font: iced_graphics::Font::Default,
-                horizontal_alignment: iced_graphics::alignment::Horizontal::Left,
-                vertical_alignment: iced_graphics::alignment::Vertical::Top,
-            });
+            renderer.fill_quad(
+                Quad {
+                    // bounds: tooltip_bounds,
+                    bounds: text.bounds,
+                    border_radius: 0.,
+                    border_width: 0.,
+                    border_color: Color::WHITE,
+                },
+                Color::from_rgb(0.9, 0.9, 0.7),
+            );
+            renderer.fill_text(text);
         }
-
         // TODO[LATER]: show text message if no thumbnails in DB
-        (
-            Primitive::Group { primitives: view },
-            mouse::Interaction::default(),
-        )
     }
 
     fn on_event(
@@ -320,9 +305,9 @@ where
         event: Event,
         layout: Layout<'_>,
         cursor_position: Point,
-        _renderer: &Renderer<B>,
+        _renderer: &Renderer,
         _clipboard: &mut dyn Clipboard,
-        messages: &mut Vec<Message>,
+        shell: &mut Shell<'_, Message>,
     ) -> event::Status {
         use iced::mouse::{Button, Event::*};
         match event {
@@ -344,7 +329,7 @@ where
             Event::Mouse(ButtonReleased(Button::Left)) => {
                 self.selecting = false;
                 if let Some(on_select) = &self.on_select {
-                    messages.push(on_select());
+                    shell.publish(on_select());
                 }
                 // println!("RLASE: {:?}", cursor_position);
             }
@@ -356,12 +341,14 @@ where
     }
 }
 
-impl<'a, Message, B> From<Gallery<'a, Message>> for iced_native::Element<'a, Message, Renderer<B>>
+impl<'a, Message, Renderer> From<Gallery<'a, Message>>
+    for iced_native::Element<'a, Message, Renderer>
 where
-    B: Backend + iced_graphics::backend::Text,
+    Renderer: text::Renderer<Font = iced_native::Font>
+        + iced_image::Renderer<Handle = iced_image::Handle>,
     Message: 'a,
 {
-    fn from(v: Gallery<'a, Message>) -> iced_native::Element<'a, Message, Renderer<B>> {
+    fn from(v: Gallery<'a, Message>) -> iced_native::Element<'a, Message, Renderer> {
         iced_native::Element::new(v)
     }
 }
