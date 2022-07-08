@@ -4,6 +4,7 @@ use iced::widget::scrollable as iced_scrollable;
 use iced::Row;
 
 use crate::db::SyncedDb;
+use crate::interlude::*;
 use crate::widgets::{
     gallery::{self, Gallery},
     tags::{self, tag},
@@ -22,6 +23,7 @@ pub struct Gui {
 #[derive(Debug, Clone)]
 pub enum Message {
     TagsMessage(tags::Message),
+    GallerySelect,
 }
 
 impl iced::Application for Gui {
@@ -66,19 +68,68 @@ impl iced::Application for Gui {
         // FIXME: Milestone: add preview window on click
         // FIXME: Milestone: show some info about where img is present
 
+        let selection = self.gallery.selection;
+        let gallery = Gallery::new(&mut self.gallery).on_select(|| Message::GallerySelect);
         iced::Row::new()
             .push(
                 iced_scrollable::Scrollable::new(&mut self.scrollable)
-                    .push(Gallery::new(&mut self.gallery))
+                    .push(gallery)
                     // .height(iced::Length::Fill)
                     .width(iced::Length::Fill),
             )
-            .push(view_tags(&mut self.tags))
+            .push(view_tags(&mut self.tags, selection, &self.db))
             .into()
     }
 }
 
-fn view_tags(tags: &mut tags::Panel) -> impl Into<iced::Element<Message>> {
+fn view_tags<'a, 'b>(
+    tags: &'a mut tags::Panel,
+    selection: (u32, u32),
+    db: &'b Arc<Mutex<rusqlite::Connection>>,
+) -> impl Into<iced::Element<'a, Message>> {
+    let db = db.lock().unwrap();
+    let sql = r"
+SELECT tag.name, tag.hidden, count(ttt)
+FROM tag LEFT JOIN (
+    SELECT tag_id AS ttt
+    FROM file_tag
+    WHERE file_id IN (
+        SELECT rowid
+        FROM file
+        ORDER BY date
+        LIMIT ? OFFSET ?
+    )
+) ON tag.rowid = ttt
+GROUP BY tag.rowid";
+    // FIXME: make it work when there are 0 images total in DB
+    let limit = selection.1 - selection.0 + 1;
+    println!("NEW TAGS for: {} .. {}", selection.0, limit);
+    *tags = db
+        .prepare_cached(sql)
+        .unwrap()
+        .query_map([limit, selection.0], |row| {
+            let name: String = row.get_unwrap(0);
+            let hidden: bool = row.get_unwrap(1);
+            let count: u32 = row.get_unwrap(2);
+            let selected = if count == 0 {
+                Some(false)
+            } else if count == limit {
+                Some(true)
+            } else {
+                None
+            };
+            let state = tag::State::default();
+            let tag = tag::Tag {
+                name,
+                hidden,
+                selected,
+                state,
+            };
+            Ok(tag)
+        })
+        .unwrap()
+        .map(|x| x.unwrap())
+        .collect();
     tags.view().map(move |msg| Message::TagsMessage(msg))
 }
 
@@ -86,6 +137,7 @@ impl Gui {
     fn update_tags(&mut self, message: Message) {
         match message {
             Message::TagsMessage(msg) => self.tags.update(msg),
+            _ => (),
         };
     }
 }

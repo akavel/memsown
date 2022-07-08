@@ -38,6 +38,17 @@ impl Panel {
     }
 }
 
+impl FromIterator<tag::Tag> for Panel {
+    fn from_iter<T>(iter: T) -> Self
+    where
+        T: IntoIterator<Item = tag::Tag>,
+    {
+        Self {
+            tags: iter.into_iter().collect(),
+        }
+    }
+}
+
 pub mod tag {
     use derivative::Derivative;
     use iced::alignment::Alignment;

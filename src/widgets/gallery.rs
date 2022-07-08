@@ -15,7 +15,7 @@ pub struct State {
     // TODO[LATER]: usize or u32 or what?
     // Note: first item in tuple is "first clicked", not "smaller of two">
     // Range is inclusive on both sides.
-    selection: (u32, u32),
+    pub selection: (u32, u32),
     selecting: bool,
 }
 
@@ -30,7 +30,7 @@ impl State {
 }
 
 #[derive(Deref, DerefMut)]
-pub struct Gallery<'a> {
+pub struct Gallery<'a, Message> {
     // NOTE: when modifying the struct, make sure to adjust Widget::hash_layout() if needed
     #[deref]
     #[deref_mut]
@@ -38,16 +38,23 @@ pub struct Gallery<'a> {
     tile_w: f32,
     tile_h: f32,
     spacing: f32,
+    on_select: Option<Box<dyn Fn() -> Message>>,
 }
 
-impl<'a> Gallery<'a> {
+impl<'a, Message> Gallery<'a, Message> {
     pub fn new(state: &'a mut State) -> Self {
         Self {
             state,
             tile_w: 200.0,
             tile_h: 200.0,
             spacing: 25.0,
+            on_select: None,
         }
+    }
+
+    pub fn on_select(mut self, f: impl Fn() -> Message + 'static) -> Self {
+        self.on_select = Some(Box::new(f));
+        self
     }
 
     fn columns(&self, layout: &Layout) -> u32 {
@@ -73,7 +80,7 @@ impl<'a> Gallery<'a> {
     }
 }
 
-impl<'a, Message, B> Widget<Message, Renderer<B>> for Gallery<'a>
+impl<'a, Message, B> Widget<Message, Renderer<B>> for Gallery<'a, Message>
 where
     B: Backend + iced_graphics::backend::Text,
 {
@@ -315,7 +322,7 @@ where
         cursor_position: Point,
         _renderer: &Renderer<B>,
         _clipboard: &mut dyn Clipboard,
-        _messages: &mut Vec<Message>,
+        messages: &mut Vec<Message>,
     ) -> event::Status {
         use iced::mouse::{Button, Event::*};
         match event {
@@ -336,6 +343,9 @@ where
             }
             Event::Mouse(ButtonReleased(Button::Left)) => {
                 self.selecting = false;
+                if let Some(on_select) = &self.on_select {
+                    messages.push(on_select());
+                }
                 // println!("RLASE: {:?}", cursor_position);
             }
             // FIXME: cancel selection when cursor exits window
@@ -346,11 +356,12 @@ where
     }
 }
 
-impl<'a, Message, B> From<Gallery<'a>> for iced_native::Element<'a, Message, Renderer<B>>
+impl<'a, Message, B> From<Gallery<'a, Message>> for iced_native::Element<'a, Message, Renderer<B>>
 where
     B: Backend + iced_graphics::backend::Text,
+    Message: 'a,
 {
-    fn from(v: Gallery<'a>) -> iced_native::Element<'a, Message, Renderer<B>> {
+    fn from(v: Gallery<'a, Message>) -> iced_native::Element<'a, Message, Renderer<B>> {
         iced_native::Element::new(v)
     }
 }
