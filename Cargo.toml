@@ -16,7 +16,6 @@ tempfile = "3.3"
 anyhow = "1.0"
 chrono = "0.4"
 derivative = "2.2"
-derive_more = "0.99"
 iced = { version = "0.4", features = ["image", "pure"] }
 ifmt = "0.3.3"
 image = { version = "0.23", default-features = false, features = ["jpeg_rayon"] }
@@ -38,4 +37,5 @@ iced_native = "0.5"
 iced_graphics = "0.3"
 iced_wgpu = "0.5"
 iced_lazy = { version = "0.1", features = ["pure"] }
+iced_pure = "0.2"
 

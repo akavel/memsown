@@ -1,5 +1,4 @@
-use iced::pure::{self, Pure};
-use iced::widget::scrollable as iced_scrollable;
+use iced::pure::{row, scrollable, Application, Element};
 
 use crate::db::SyncedDb;
 use crate::interlude::*;
@@ -11,23 +10,17 @@ use crate::widgets::{
 // FIXME: duplicated between here and src/bin/view.rs !!!
 pub struct Gui {
     db: SyncedDb,
-
-    // States of sub-widgets
-    scrollable: iced_scrollable::State,
-    gallery: gallery::State,
-    // TODO: migrate to fully pure
-    state: pure::State,
-    // Pure sub-widgets
+    gallery_selection: gallery::Selection,
     tags: tags::Panel,
 }
 
 #[derive(Debug, Clone)]
 pub enum Message {
     OfTags(tags::Event),
-    GallerySelect,
+    GallerySelection(gallery::Selection),
 }
 
-impl iced::Application for Gui {
+impl Application for Gui {
     type Message = Message;
     type Flags = SyncedDb;
     type Executor = iced::executor::Default;
@@ -35,9 +28,7 @@ impl iced::Application for Gui {
     fn new(db: SyncedDb) -> (Gui, iced::Command<Self::Message>) {
         let gui = Gui {
             db: Arc::clone(&db),
-            scrollable: iced_scrollable::State::new(),
-            gallery: gallery::State::new(db),
-            state: Default::default(),
+            gallery_selection: Default::default(),
             tags: tags::Panel::new(&vec![
                 tag::Tag {
                     name: "hidden".to_string(),
@@ -61,23 +52,32 @@ impl iced::Application for Gui {
     fn update(&mut self, message: Self::Message) -> iced::Command<Self::Message> {
         // TODO: when GallerySelect received, save file IDs, so that their tags can be easily
         // updated in DB when a tag is toggled
-        self.update_tags(message);
+        match message {
+            Message::OfTags(m) => {
+                self.tags.update(m);
+                self.load_tags_for_selection();
+            }
+            Message::GallerySelection(selection) => {
+                self.gallery_selection = selection;
+                self.load_tags_for_selection();
+            }
+        }
         iced::Command::none()
     }
 
-    fn view(&mut self) -> iced::Element<Self::Message> {
+    fn view(&self) -> Element<Self::Message> {
         // FIXME: Milestone: detect click
         // FIXME: Milestone: add preview window on click
         // FIXME: Milestone: show some info about where img is present
 
-        let gallery = Gallery::new(&mut self.gallery).on_select(|| Message::GallerySelect);
-        let tags = Pure::new(&mut self.state, self.tags.view().map(Message::OfTags));
-        iced::Row::new()
+        let gallery = Gallery::new(Arc::clone(&self.db))
+            .with_selection(self.gallery_selection)
+            .on_select(Message::GallerySelection);
+        let tags = self.tags.view().map(Message::OfTags);
+        row()
             .push(
-                iced_scrollable::Scrollable::new(&mut self.scrollable)
-                    .push(gallery)
-                    // .height(iced::Length::Fill)
-                    .width(iced::Length::Fill),
+                scrollable(gallery), // // .height(iced::Length::Fill)
+                                     // .width(iced::Length::Fill),
             )
             .push(tags)
             .into()
@@ -85,12 +85,7 @@ impl iced::Application for Gui {
 }
 
 impl Gui {
-    fn update_tags(&mut self, message: Message) {
-        match message {
-            Message::OfTags(msg) => self.tags.update(msg),
-            _ => (),
-        };
-
+    fn load_tags_for_selection(&mut self) {
         let db = self.db.lock().unwrap();
         let sql = r"
 SELECT tag.name, tag.hidden, count(ttt)
@@ -106,13 +101,13 @@ FROM tag LEFT JOIN (
 ) ON tag.rowid = ttt
 GROUP BY tag.rowid";
         // FIXME: make it work when there are 0 images total in DB
-        let selection = self.gallery.selection;
-        let limit = selection.1 - selection.0 + 1;
-        println!("NEW TAGS for: {} .. {}", selection.0, limit);
+        let selection = self.gallery_selection.range();
+        let limit = selection.end() - selection.start() + 1;
+        println!("NEW TAGS for: {} .. {}", selection.start(), limit);
         self.tags = db
             .prepare_cached(sql)
             .unwrap()
-            .query_map([limit, selection.0], |row| {
+            .query_map([limit, *selection.start()], |row| {
                 let name: String = row.get_unwrap(0);
                 let hidden: bool = row.get_unwrap(1);
                 let count: u32 = row.get_unwrap(2);

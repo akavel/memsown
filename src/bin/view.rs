@@ -1,4 +1,4 @@
-use iced::Application;
+use iced::pure::Application;
 
 use backer::db;
 use backer::gui::Gui;

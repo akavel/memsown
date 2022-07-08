@@ -1,52 +1,79 @@
-use derive_more::{Deref, DerefMut};
+use std::ops::RangeInclusive;
+
+use iced::pure::{Element, Widget};
 use iced_graphics::{Color, Rectangle};
 use iced_native::alignment;
 use iced_native::event::{self, Event};
 use iced_native::image as iced_image;
 use iced_native::renderer::{self, Quad};
 use iced_native::text::{self, Text};
-use iced_native::{layout, Clipboard, Layout, Length, Point, Shell, Size, Widget};
+use iced_native::{layout, Clipboard, Layout, Length, Point, Shell, Size};
+use iced_pure::widget::tree::{self, Tree};
 use image::ImageDecoder;
 use itertools::Itertools;
 use rusqlite::params;
 
 use crate::interlude::*;
 
-// See also: `iced/examples/todos/`, how `text_input::State` is stored
-pub struct State {
-    db: Arc<Mutex<rusqlite::Connection>>,
-    // TODO[LATER]: usize or u32 or what?
-    // Note: first item in tuple is "first clicked", not "smaller of two">
-    // Range is inclusive on both sides.
-    pub selection: (u32, u32),
-    selecting: bool,
+pub struct Gallery<Message> {
+    pub db: Arc<Mutex<rusqlite::Connection>>,
+    pub selection: Selection,
+
+    tile_w: f32,
+    tile_h: f32,
+    spacing: f32,
+    on_select: Option<Box<dyn Fn(Selection) -> Message>>,
 }
 
-impl State {
-    pub fn new(db: Arc<Mutex<rusqlite::Connection>>) -> Self {
+#[derive(Copy, Clone, Default, Debug)]
+pub struct Selection {
+    // TODO[LATER]: usize or u32 or what?
+    /// Item clicked initially.
+    pub initial: u32,
+    /// Item clicked last.
+    pub last: u32,
+}
+
+impl Selection {
+    pub fn single(idx: u32) -> Self {
         Self {
-            db,
-            selection: (0, 0),
-            selecting: false,
+            initial: idx,
+            last: idx,
+        }
+    }
+
+    pub fn range(&self) -> RangeInclusive<u32> {
+        if self.initial <= self.last {
+            self.initial..=self.last
+        } else {
+            self.last..=self.initial
         }
     }
 }
 
-#[derive(Deref, DerefMut)]
-pub struct Gallery<'a, Message> {
-    #[deref]
-    #[deref_mut]
-    state: &'a mut State,
-    tile_w: f32,
-    tile_h: f32,
-    spacing: f32,
-    on_select: Option<Box<dyn Fn() -> Message>>,
+#[derive(Default)]
+struct InternalState {
+    selecting: bool,
 }
 
-impl<'a, Message> Gallery<'a, Message> {
-    pub fn new(state: &'a mut State) -> Self {
+impl<'a> From<&'a mut Tree> for &'a mut InternalState {
+    fn from(tree: &'a mut Tree) -> &'a mut InternalState {
+        tree.state.downcast_mut()
+    }
+}
+
+impl<'a> From<&'a Tree> for &'a InternalState {
+    fn from(tree: &'a Tree) -> &'a InternalState {
+        tree.state.downcast_ref()
+    }
+}
+
+impl<Message> Gallery<Message> {
+    pub fn new(db: Arc<Mutex<rusqlite::Connection>>) -> Self {
         Self {
-            state,
+            db,
+            selection: Default::default(),
+
             tile_w: 200.0,
             tile_h: 200.0,
             spacing: 25.0,
@@ -54,7 +81,12 @@ impl<'a, Message> Gallery<'a, Message> {
         }
     }
 
-    pub fn on_select(mut self, f: impl Fn() -> Message + 'static) -> Self {
+    pub fn with_selection(mut self, s: Selection) -> Self {
+        self.selection = s;
+        self
+    }
+
+    pub fn on_select(mut self, f: impl Fn(Selection) -> Message + 'static) -> Self {
         self.on_select = Some(Box::new(f));
         self
     }
@@ -77,16 +109,23 @@ impl<'a, Message> Gallery<'a, Message> {
     }
 
     fn offset_selected(&self, offset: u32) -> bool {
-        let s = self.selection;
-        (s.0 <= offset && offset <= s.1) || (s.1 <= offset && offset <= s.0)
+        self.selection.range().contains(&offset)
     }
 }
 
-impl<'a, Message, Renderer> Widget<Message, Renderer> for Gallery<'a, Message>
+impl<Message, Renderer> Widget<Message, Renderer> for Gallery<Message>
 where
     Renderer: text::Renderer<Font = iced_native::Font>
         + iced_image::Renderer<Handle = iced_image::Handle>,
 {
+    fn tag(&self) -> tree::Tag {
+        tree::Tag::of::<InternalState>()
+    }
+
+    fn state(&self) -> tree::State {
+        tree::State::new(InternalState::default())
+    }
+
     fn width(&self) -> Length {
         Length::Fill
     }
@@ -116,11 +155,13 @@ where
 
     fn draw(
         &self,
+        _tree: &Tree,
         renderer: &mut Renderer,
         _style: &renderer::Style,
         layout: Layout<'_>,
+        // cursor_position: Point,
         cursor: Point,
-        viewport: &iced_graphics::Rectangle,
+        viewport: &Rectangle,
     ) {
         // TODO(akavel): contribute below explanation to iced_native::Widget docs
         // Note(akavel): from discord discussion:
@@ -301,6 +342,7 @@ where
 
     fn on_event(
         &mut self,
+        tree: &mut Tree,
         event: Event,
         layout: Layout<'_>,
         cursor_position: Point,
@@ -309,26 +351,26 @@ where
         shell: &mut Shell<'_, Message>,
     ) -> event::Status {
         use iced::mouse::{Button, Event::*};
+        let state: &mut InternalState = tree.into();
         match event {
             Event::Mouse(ButtonPressed(Button::Left)) => {
                 let i = self.xy_to_offset(&layout, cursor_position);
-                self.selection = (i, i);
-                self.selecting = true;
-                // self.selection = Some((
+                self.selection = Selection::single(i);
+                state.selecting = true;
                 // println!("PRESS: {:?}", cursor_position);
             }
             Event::Mouse(CursorMoved { .. }) => {
-                if self.selecting {
+                if state.selecting {
                     let i = self.xy_to_offset(&layout, cursor_position);
-                    self.selection.1 = i;
+                    self.selection.last = i;
                 }
                 // println!(" MOVE: {:?}", cursor_position);
                 // println!("bounds: {:?} pos: {:?}", layout.bounds(), layout.position());
             }
             Event::Mouse(ButtonReleased(Button::Left)) => {
-                self.selecting = false;
+                state.selecting = false;
                 if let Some(on_select) = &self.on_select {
-                    shell.publish(on_select());
+                    shell.publish(on_select(self.selection));
                 }
                 // println!("RLASE: {:?}", cursor_position);
             }
@@ -340,14 +382,11 @@ where
     }
 }
 
-impl<'a, Message, Renderer> From<Gallery<'a, Message>>
-    for iced_native::Element<'a, Message, Renderer>
+impl<'a, Message> From<Gallery<Message>> for Element<'a, Message>
 where
-    Renderer: text::Renderer<Font = iced_native::Font>
-        + iced_image::Renderer<Handle = iced_image::Handle>,
     Message: 'a,
 {
-    fn from(v: Gallery<'a, Message>) -> iced_native::Element<'a, Message, Renderer> {
-        iced_native::Element::new(v)
+    fn from(v: Gallery<Message>) -> Element<'a, Message> {
+        Element::new(v)
     }
 }

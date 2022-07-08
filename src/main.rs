@@ -1,7 +1,7 @@
 use std::thread;
 
 use anyhow::Result;
-use iced::Application;
+use iced::pure::Application;
 
 use backer::config;
 use backer::db;
