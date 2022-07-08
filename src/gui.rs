@@ -29,27 +29,25 @@ impl iced::Application for Gui {
     type Executor = iced::executor::Default;
 
     fn new(flags: SyncedDb) -> (Gui, iced::Command<Self::Message>) {
-        (
-            Gui {
-                db: flags,
-                scrollable: iced_scrollable::State::new(),
-                tags: tags::Panel::new(&vec![
-                    tag::Tag {
-                        name: "hidden".to_string(),
-                        selected: None,
-                        hidden: true,
-                        state: tag::State::default(),
-                    },
-                    tag::Tag {
-                        name: "tag 2".to_string(),
-                        selected: Some(true),
-                        hidden: false,
-                        state: tag::State::default(),
-                    },
-                ]),
-            },
-            iced::Command::none(),
-        )
+        let gui = Gui {
+            db: flags,
+            scrollable: iced_scrollable::State::new(),
+            tags: tags::Panel::new(&vec![
+                tag::Tag {
+                    name: "hidden".to_string(),
+                    selected: None,
+                    hidden: true,
+                    state: tag::State::default(),
+                },
+                tag::Tag {
+                    name: "tag 2".to_string(),
+                    selected: Some(true),
+                    hidden: false,
+                    state: tag::State::default(),
+                },
+            ]),
+        };
+        (gui, iced::Command::none())
     }
 
     fn title(&self) -> String {
