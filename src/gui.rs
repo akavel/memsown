@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use iced::widget::scrollable as iced_scrollable;
-use iced::Row;
 
 use crate::db::SyncedDb;
 use crate::interlude::*;

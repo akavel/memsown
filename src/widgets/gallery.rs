@@ -1,17 +1,16 @@
-use std::ops::Range;
-use std::sync::{Arc, Mutex};
-
 use derive_more::{Deref, DerefMut};
-use iced_graphics::{Backend, Background, Color, Primitive, Rectangle, Renderer};
+use iced_graphics::{Color, Rectangle};
 use iced_native::alignment;
 use iced_native::event::{self, Event};
 use iced_native::image as iced_image;
 use iced_native::renderer::{self, Quad};
 use iced_native::text::{self, Text};
-use iced_native::{layout, mouse, Clipboard, Layout, Length, Point, Shell, Size, Widget};
+use iced_native::{layout, Clipboard, Layout, Length, Point, Shell, Size, Widget};
 use image::ImageDecoder;
 use itertools::Itertools;
 use rusqlite::params;
+
+use crate::interlude::*;
 
 // See also: `iced/examples/todos/`, how `text_input::State` is stored
 pub struct State {

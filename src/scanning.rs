@@ -1,9 +1,8 @@
 use std::fs::{self, File};
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result};
 use chrono::{NaiveDate, NaiveDateTime};
 use exif::{Exif, Reader as ExifReader};
 use image::imageops::FilterType;

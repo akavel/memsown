@@ -1,4 +1,4 @@
-use iced::{Application, Column};
+use iced::Application;
 
 use backer::widgets::tags::{self, tag};
 

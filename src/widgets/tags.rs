@@ -53,7 +53,7 @@ pub mod tag {
     use derivative::Derivative;
     use iced::alignment::Alignment;
     use iced::button::{self, Button};
-    use iced::{Length, Row, Text};
+    use iced::{Row, Text};
 
     use crate::res;
 
