@@ -59,6 +59,8 @@ impl iced::Application for Gui {
     }
 
     fn update(&mut self, message: Self::Message) -> iced::Command<Self::Message> {
+        // TODO: when GallerySelect received, save file IDs, so that their tags can be easily
+        // updated in DB when a tag is toggled
         self.update_tags(message);
         iced::Command::none()
     }
