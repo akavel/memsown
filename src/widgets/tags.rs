@@ -1,12 +1,12 @@
-use iced::Column;
+use iced::pure::{button, column, row, text, Element};
 
 pub struct Panel {
     tags: Vec<tag::Tag>,
 }
 
 #[derive(Debug, Clone)]
-pub enum Message {
-    TagMessage(usize, tag::Message),
+pub enum Event {
+    OfNthTag(usize, tag::Event),
 }
 
 impl Panel {
@@ -14,26 +14,26 @@ impl Panel {
         Self { tags: tags.into() }
     }
 
-    pub fn update(&mut self, message: Message) {
-        match message {
-            Message::TagMessage(i, tag_message) => {
+    pub fn update(&mut self, event: Event) {
+        match event {
+            Event::OfNthTag(i, tag_event) => {
                 if let Some(tag) = self.tags.get_mut(i) {
-                    tag.update(tag_message);
+                    tag.update(tag_event)
                 }
             }
         }
     }
 
-    pub fn view(&mut self) -> iced::Element<Message> {
-        let tags: iced::Element<_> = self
+    pub fn view(&self) -> Element<Event> {
+        // TODO: wrap in Scrollable
+        let tags: Element<_> = self
             .tags
-            .iter_mut()
+            .iter()
             .enumerate()
-            .fold(Column::new().spacing(20), |col, (i, tag)| {
-                col.push(tag.view().map(move |msg| Message::TagMessage(i, msg)))
+            .fold(column().spacing(20), |col, (i, tag)| {
+                col.push(tag.view().map(move |msg| Event::OfNthTag(i, msg)))
             })
             .into();
-        // TODO: wrap in Scrollable
         tags
     }
 }
@@ -50,15 +50,14 @@ impl FromIterator<tag::Tag> for Panel {
 }
 
 pub mod tag {
-    use derivative::Derivative;
+    use super::*;
+
     use iced::alignment::Alignment;
-    use iced::button::{self, Button};
-    use iced::{Row, Text};
 
     use crate::res;
 
     #[derive(Debug, Clone)]
-    pub enum Message {
+    pub enum Event {
         SetSelected(bool),
         SetHidden(bool),
     }
@@ -69,63 +68,55 @@ pub mod tag {
         // TODO: are there three-state checkboxes in iced?
         pub selected: Option<bool>,
         pub hidden: bool,
-
-        pub state: State,
-    }
-
-    #[derive(Clone, Derivative)]
-    #[derivative(Default)]
-    pub struct State {
-        selected_button: button::State,
-        hidden_button: button::State,
     }
 
     impl Tag {
-        pub fn update(&mut self, message: Message) {
-            match message {
-                Message::SetSelected(selected) => {
+        pub fn new(name: String, selected: Option<bool>, hidden: bool) -> Self {
+            Self {
+                name,
+                selected,
+                hidden,
+            }
+        }
+
+        pub fn update(&mut self, event: Event) {
+            match event {
+                Event::SetSelected(selected) => {
                     self.selected = Some(selected);
                 }
-                Message::SetHidden(hidden) => {
+                Event::SetHidden(hidden) => {
                     self.hidden = hidden;
                 }
             }
         }
 
-        pub fn view(&mut self) -> iced::Element<Message> {
+        pub fn view(&self) -> Element<Event> {
             // TODO[LATER]: handle `name` editing
             // TODO[LATER]: make buttons align vertically among others
-            Row::new()
+            let selected_icon = match self.selected {
+                None => res::icon_minus_squared_alt(),
+                Some(true) => res::icon_ok_squared(),
+                Some(false) => res::icon_check_empty(),
+            };
+            let hidden_icon = match self.hidden {
+                false => res::icon_eye(),
+                true => res::icon_eye_off(),
+            };
+            row()
                 .spacing(20)
                 .align_items(Alignment::Center)
                 .push(
-                    Button::new(
-                        &mut self.state.selected_button,
-                        match self.selected {
-                            None => res::icon_minus_squared_alt(),
-                            Some(true) => res::icon_ok_squared(),
-                            Some(false) => res::icon_check_empty(),
-                        },
-                    )
-                    .on_press(Message::SetSelected(match self.selected {
-                        None | Some(false) => true,
-                        Some(true) => false,
-                    }))
-                    // TODO: .style(style::Button::Icon) - see: iced/examples/todos/
-                    .padding(10),
+                    button(selected_icon)
+                        .on_press(Event::SetSelected(!self.selected.unwrap_or(false)))
+                        // TODO: .style(style::Button::Icon) - see: iced/examples/todos/
+                        .padding(10),
                 )
-                .push(Text::new(&self.name)) //.width(Length::Fill))
+                .push(text(&self.name)) //.width(Length::Fill))
                 .push(
-                    Button::new(
-                        &mut self.state.hidden_button,
-                        match self.hidden {
-                            false => res::icon_eye(),
-                            true => res::icon_eye_off(),
-                        },
-                    )
-                    .on_press(Message::SetHidden(!self.hidden))
-                    // TODO: .style(style::Button::Icon) - see: iced/examples/todos/
-                    .padding(10),
+                    button(hidden_icon)
+                        .on_press(Event::SetHidden(!self.hidden))
+                        // TODO: .style(style::Button::Icon) - see: iced/examples/todos/
+                        .padding(10),
                 )
                 .into()
         }
