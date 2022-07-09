@@ -1,4 +1,4 @@
-use iced::Application;
+use iced::pure::{Element, Sandbox};
 
 use backer::widgets::tags::{self, tag};
 
@@ -12,8 +12,8 @@ struct ShowTags {
     panel: tags::Panel,
 }
 
-impl iced::Sandbox for ShowTags {
-    type Message = tags::Message;
+impl Sandbox for ShowTags {
+    type Message = tags::Event;
 
     fn new() -> Self {
         let panel = tags::Panel::new(&vec![
@@ -21,19 +21,16 @@ impl iced::Sandbox for ShowTags {
                 name: "hidden".to_string(),
                 selected: None,
                 hidden: true,
-                state: tag::State::default(),
             },
             tag::Tag {
                 name: "tag 2".to_string(),
                 selected: Some(true),
                 hidden: false,
-                state: tag::State::default(),
             },
             tag::Tag {
                 name: "tag 3".to_string(),
                 selected: Some(false),
                 hidden: false,
-                state: tag::State::default(),
             },
         ]);
         Self { panel }
@@ -47,7 +44,7 @@ impl iced::Sandbox for ShowTags {
         self.panel.update(message);
     }
 
-    fn view(&mut self) -> iced::Element<Self::Message> {
+    fn view(&self) -> Element<Self::Message> {
         self.panel.view()
     }
 }
