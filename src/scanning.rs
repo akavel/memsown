@@ -228,7 +228,7 @@ impl Tree {
             Ok(tree) => tree,
         };
         let date_paths = date_paths_per_marker.get(&marker);
-        let date_paths = date_paths.map(|v| v.to_owned()).unwrap_or(Vec::new());
+        let date_paths = date_paths.map(|v| v.to_owned()).unwrap_or_default();
         Ok(Tree {
             marker,
             root,
@@ -267,7 +267,7 @@ fn marker_read(file_path: &Path) -> Result<(PathBuf, String)> {
 /// the DB.
 pub fn hash(buf: &[u8]) -> String {
     // TODO[LATER]: maybe switch to a secure hash (sha2 or other, see: https://github.com/RustCrypto/hashes)
-    format!("{:x}", Sha1::digest(&buf))
+    format!("{:x}", Sha1::digest(buf))
 }
 
 /// Try hard to find out some datetime info from either `exif` data, or `relative_path` of the file.
@@ -292,7 +292,7 @@ fn try_deduce_date<'a>(
     // TODO: helper binary for checking which paths would decode to what dates
     // TODO[LATER]: add option/button to pre-check date-path patterns on real files tree in GUI
     for date_path in date_paths {
-        if let Some(found) = date_path.path.captures(&relative_path) {
+        if let Some(found) = date_path.path.captures(relative_path) {
             let mut buf = String::new();
             found.expand(&date_path.date, &mut buf);
             const YMD_HMS: &str = "%Y-%m-%d %H:%M:%S";
@@ -341,8 +341,8 @@ mod test {
         db::init(&conn).unwrap();
         db::upsert(
             &conn,
-            &marker,
-            &relative_path,
+            marker,
+            relative_path,
             &crate::model::FileInfo {
                 hash: hash(&Vec::new()),
                 date: None,
@@ -350,7 +350,7 @@ mod test {
             },
         )
         .unwrap();
-        assert_eq!(db::exists(&conn, &marker, &relative_path), Ok(true));
+        assert_eq!(db::exists(&conn, marker, relative_path), Ok(true));
         drop(conn);
 
         // act
@@ -362,7 +362,7 @@ mod test {
         assert!(res.is_ok(), "stage2 == {:?}", &res);
 
         let conn = db.lock().unwrap();
-        assert_eq!(db::exists(&conn, &marker, &relative_path), Ok(false));
+        assert_eq!(db::exists(&conn, marker, relative_path), Ok(false));
         drop(conn);
     }
 }

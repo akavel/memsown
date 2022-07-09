@@ -173,8 +173,8 @@ mod test {
         db::init(&conn).unwrap();
         db::upsert(
             &conn,
-            &marker,
-            &path,
+            marker,
+            path,
             &FileInfo {
                 hash: hash_a.clone(),
                 date: None,
@@ -182,7 +182,7 @@ mod test {
             },
         )
         .unwrap();
-        assert_eq!(db::exists(&conn, &marker, &path), Ok(true));
+        assert_eq!(db::exists(&conn, marker, path), Ok(true));
         assert_eq!(
             all_files(&conn),
             vec![FileInfo {
@@ -196,8 +196,8 @@ mod test {
 
         db::upsert(
             &conn,
-            &marker,
-            &path,
+            marker,
+            path,
             &FileInfo {
                 hash: hash_b.clone(),
                 date: Some(date_2),
@@ -208,17 +208,17 @@ mod test {
 
         // assert
 
-        assert_eq!(db::exists(&conn, &marker, &path), Ok(true));
+        assert_eq!(db::exists(&conn, marker, path), Ok(true));
         assert_eq!(
             all_files(&conn),
             vec![
                 FileInfo {
-                    hash: hash_a.clone(),
+                    hash: hash_a,
                     date: None,
                     thumb: vec![b'A']
                 },
                 FileInfo {
-                    hash: hash_b.clone(),
+                    hash: hash_b,
                     date: Some(date_2),
                     thumb: vec![b'B']
                 },
@@ -239,8 +239,8 @@ mod test {
         db::init(&conn).unwrap();
         db::upsert(
             &conn,
-            &marker,
-            &path,
+            marker,
+            path,
             &FileInfo {
                 hash: hash.clone(),
                 date: None,
@@ -248,7 +248,7 @@ mod test {
             },
         )
         .unwrap();
-        assert_eq!(db::exists(&conn, &marker, &path), Ok(true));
+        assert_eq!(db::exists(&conn, marker, path), Ok(true));
         assert_eq!(
             all_files(&conn),
             vec![FileInfo {
@@ -262,8 +262,8 @@ mod test {
 
         db::upsert(
             &conn,
-            &marker,
-            &path,
+            marker,
+            path,
             &FileInfo {
                 hash: hash.clone(),
                 date: Some(date_2),
@@ -274,11 +274,11 @@ mod test {
 
         // assert
 
-        assert_eq!(db::exists(&conn, &marker, &path), Ok(true));
+        assert_eq!(db::exists(&conn, marker, path), Ok(true));
         assert_eq!(
             all_files(&conn),
             vec![FileInfo {
-                hash: hash.clone(),
+                hash,
                 date: Some(date_2),
                 thumb: vec![b'B']
             }]

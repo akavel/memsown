@@ -110,7 +110,7 @@ impl<Message> Gallery<Message> {
         let row_h = self.tile_h + self.spacing;
         let row = (y_without_top_margin / row_h) as u32;
 
-        Some(row * self.columns(&layout) + col)
+        Some(row * self.columns(layout) + col)
     }
 
     fn offset_selected(&self, offset: u32) -> bool {

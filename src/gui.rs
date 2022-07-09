@@ -29,7 +29,7 @@ impl Application for Gui {
         let gui = Gui {
             db: Arc::clone(&db),
             gallery_selection: Default::default(),
-            tags: tags::Panel::new(&vec![
+            tags: tags::Panel::new(&[
                 tag::Tag {
                     name: "hidden".to_string(),
                     selected: None,

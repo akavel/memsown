@@ -16,7 +16,7 @@ impl Sandbox for ShowTags {
     type Message = tags::Event;
 
     fn new() -> Self {
-        let panel = tags::Panel::new(&vec![
+        let panel = tags::Panel::new(&[
             tag::Tag {
                 name: "hidden".to_string(),
                 selected: None,

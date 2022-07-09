@@ -48,7 +48,7 @@ fn run() -> Result<()> {
     let scanner = {
         // TODO[LATER]: consider not cloning config maybe (?)
         // TODO[LATER]: somehow pass args prettier to the thread
-        let (db, config) = (db.clone(), config.clone());
+        let (db, config) = (db.clone(), config);
         thread::spawn(move || scan(db, config).unwrap())
     };
 
