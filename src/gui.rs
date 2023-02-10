@@ -7,7 +7,6 @@ use crate::widgets::{
     tags::{self, tag},
 };
 
-// FIXME: duplicated between here and src/bin/view.rs !!!
 pub struct Gui {
     db: SyncedDb,
     gallery_selection: gallery::Selection,
