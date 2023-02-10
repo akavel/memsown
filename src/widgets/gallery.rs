@@ -193,10 +193,15 @@ where
         // TODO[LATER]: think whether to remove .unwrap()
         let mut query = db
             .prepare_cached(
-                r"SELECT hash, date, thumbnail
-                    FROM file
-                    ORDER BY date
-                    LIMIT ? OFFSET ?",
+                r"
+SELECT hash, date, thumbnail
+FROM file
+LEFT JOIN file_tag ON file.rowid = file_tag.file_id
+LEFT JOIN tag ON tag.rowid = file_tag.tag_id
+GROUP BY file.rowid
+HAVING count(hidden)=0
+ORDER BY date
+LIMIT ? OFFSET ?",
             )
             .unwrap();
         let file_iter = query
@@ -297,13 +302,20 @@ where
             // println!("hovered_offset: {:?}", hovered_offset);
             let locations = db
                 .prepare_cached(
-                    r"SELECT backend_tag, path
-                        FROM location
-                        WHERE file_id = (SELECT rowid
-                            FROM file
-                            ORDER BY date
-                            LIMIT 1 OFFSET ?)
-                        ORDER BY backend_tag ASC, path ASC",
+                    // FIXME: somehow unify internal query with the
+                    // other SELECT query in this file.
+                    r"
+SELECT backend_tag, path
+FROM location
+WHERE file_id = (SELECT file.rowid
+    FROM file
+    LEFT JOIN file_tag ON file.rowid = file_tag.file_id
+    LEFT JOIN tag ON tag.rowid = file_tag.tag_id
+    GROUP BY file.rowid
+    HAVING count(hidden)=0
+    ORDER BY date
+    LIMIT 1 OFFSET ?)
+ORDER BY backend_tag ASC, path ASC",
                 )
                 .unwrap()
                 .query_map([hovered_offset], |row| {
