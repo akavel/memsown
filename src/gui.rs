@@ -93,8 +93,12 @@ FROM tag LEFT JOIN (
     SELECT tag_id AS ttt
     FROM file_tag
     WHERE file_id IN (
-        SELECT rowid
+        SELECT file.rowid
         FROM file
+            LEFT JOIN file_tag ON file.rowid = file_tag.file_id
+            LEFT JOIN tag ON tag.rowid = file_tag.tag_id
+            GROUP BY file.rowid
+            HAVING count(hidden)=0
         ORDER BY date
         LIMIT ? OFFSET ?
     )
