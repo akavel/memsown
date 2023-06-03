@@ -53,6 +53,12 @@ impl Application for Gui {
         // updated in DB when a tag is toggled
         match message {
             Message::OfTags(m) => {
+                match m {
+                    tags::Event::OfNthTag(ref n, tags::tag::Event::SetHidden(ref hidden)) => {
+                        println!("SET HDN [{}] = {}", n, hidden);
+                    }
+                    _ => {}
+                }
                 self.tags.update(m);
                 self.load_tags_for_selection();
             }
