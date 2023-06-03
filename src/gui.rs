@@ -86,6 +86,7 @@ impl Application for Gui {
 impl Gui {
     fn load_tags_for_selection(&mut self) {
         let db = self.db.lock().unwrap();
+// FIXME: use a list of rowids as selection, instead of limit+offset
         let sql = r"
 SELECT tag.name, tag.hidden, count(ttt)
 FROM tag LEFT JOIN (
