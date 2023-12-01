@@ -56,6 +56,7 @@ impl Application for Gui {
                 match m {
                     tags::Event::OfNthTag(ref n, tags::tag::Event::SetHidden(ref hidden)) => {
                         println!("SET HDN [{}] = {}", n, hidden);
+//TODO: update DB based on rowid stored in self.tags
                     }
                     _ => {}
                 }
