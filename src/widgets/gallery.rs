@@ -194,7 +194,10 @@ where
             .unwrap_or(0);
         let limit = (2 + (viewport.height / (self.tile_h + self.spacing)) as u32) * columns;
 
+        let span_dblock = span!(Level::TRACE, "draw/dblock");
+        let guard_dblock = span_dblock.enter();
         let db = self.db.lock().unwrap();
+        drop(guard_dblock);
 
         // FIXME: calculate LIMIT & OFFSET based on viewport vs. layout.bounds
         // TODO[LATER]: think whether to remove .unwrap()
@@ -215,6 +218,8 @@ LIMIT ? OFFSET ?",
             .unwrap();
         let file_iter = query
             .query_map(params!(limit, offset), |row| {
+                let span_filerow = span!(Level::TRACE, "draw/filerow");
+                let _guard_filerow = span_filerow.enter();
                 Ok(crate::model::FileInfo {
                     hash: row.get_unwrap(0),
                     date: row.get_unwrap(1),
@@ -226,6 +231,8 @@ LIMIT ? OFFSET ?",
 
         // println!("{:?} {:?}", layout.bounds(), &viewport);
 
+        let span_fenumerate = span!(Level::TRACE, "draw/fenumerate");
+        let guard_fenumerate = span_fenumerate.enter();
         let mut last_date = String::new();
         let mut x = self.spacing;
         let mut y = self.spacing + (offset / columns) as f32 * (self.tile_h + self.spacing);
@@ -254,9 +261,12 @@ LIMIT ? OFFSET ?",
             let file = row.unwrap();
 
             // Extract dimensions of thumbnail
+            let span_jpegdec = span!(Level::TRACE, "draw/jpegdec");
+            let guard_jpegdec = span_jpegdec.enter();
             let (w, h) = image::jpeg::JpegDecoder::new(std::io::Cursor::new(&file.thumb))
                 .unwrap()
                 .dimensions();
+            drop(guard_jpegdec);
             let (w, h) = (w as f32, h as f32);
             // Calculate scale, keeping aspect ratio
             let scale = 1_f32.min((w / self.tile_w).max(h / self.tile_h));
@@ -264,6 +274,8 @@ LIMIT ? OFFSET ?",
             let align_x = (self.tile_w - w / scale) / 2.0;
             let align_y = (self.tile_h - h / scale) / 2.0;
 
+            let span_imagethumb = span!(Level::TRACE, "draw/imagethumb");
+            let guard_imagethumb = span_imagethumb.enter();
             renderer.draw(
                 iced_image::Handle::from_memory(file.thumb),
                 Rectangle {
@@ -273,6 +285,7 @@ LIMIT ? OFFSET ?",
                     height: h,
                 },
             );
+            drop(guard_imagethumb);
 
             // Display date header if necessary
             // TODO[LATER]: start 1 row earlier to make sure date is not displayed too greedily
@@ -308,6 +321,7 @@ LIMIT ? OFFSET ?",
                 }
             }
         }
+        drop(guard_fenumerate);
 
         // Show locations of image file in a hovering tooltip at cursor position.
         // println!("cursor: {:?}", cursor);
@@ -316,6 +330,8 @@ LIMIT ? OFFSET ?",
             let _guard_draw_tooltip = span_draw_tooltip.enter();
 
             // println!("hovered_offset: {:?}", hovered_offset);
+            let span_locations = span!(Level::TRACE, "draw/locations");
+            let guard_locations = span_locations.enter();
             let locations = db
                 .prepare_cached(
                     // FIXME: somehow unify internal query with the
@@ -342,6 +358,7 @@ ORDER BY backend_tag ASC, path ASC",
                 .unwrap()
                 .map(|x: Result<String, _>| x.unwrap())
                 .join("\n");
+            drop(guard_locations);
             let text = {
                 let content = locations.as_str();
                 let size = 12u16;
