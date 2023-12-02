@@ -39,4 +39,8 @@ iced_graphics = "0.3"
 iced_wgpu = "0.5"
 iced_lazy = { version = "0.1", features = ["pure"] }
 iced_pure = "0.2"
+# Profiling
+tracing-chrome = "0.7"
+tracing-subscriber = { version = "0.3", default-features = false, features = ["std", "registry"] }
+tracing = "0.1"
 
