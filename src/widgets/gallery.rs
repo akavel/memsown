@@ -12,6 +12,7 @@ use iced_pure::widget::tree::{self, Tree};
 use image::ImageDecoder;
 use itertools::Itertools;
 use rusqlite::params;
+use tracing::{Level, span};
 
 use crate::interlude::*;
 
@@ -140,6 +141,9 @@ where
     }
 
     fn layout(&self, _: &Renderer, limits: &layout::Limits) -> layout::Node {
+        let prof_span = span!(Level::TRACE, "gallery::layout");
+        let _enter = prof_span.enter();
+
         // println!("MCDBG Gallery::layout(limits: {:?})", limits);
 
         let db = self.db.lock().unwrap();
@@ -168,6 +172,9 @@ where
         cursor: Point,
         viewport: &Rectangle,
     ) {
+        let prof_span = span!(Level::TRACE, "gallery::draw");
+        let _enter = prof_span.enter();
+
         // TODO(akavel): contribute below explanation to iced_native::Widget docs
         // Note(akavel): from discord discussion:
         //  hecrj: viewport is the visible area of the layout bounds.
@@ -191,6 +198,8 @@ where
 
         // FIXME: calculate LIMIT & OFFSET based on viewport vs. layout.bounds
         // TODO[LATER]: think whether to remove .unwrap()
+        let span_filequery_init = span!(Level::TRACE, "draw/filequery_init");
+        let guard_filequery_init = span_filequery_init.enter();
         let mut query = db
             .prepare_cached(
                 r"
@@ -213,6 +222,7 @@ LIMIT ? OFFSET ?",
                 })
             })
             .unwrap();
+        drop(guard_filequery_init);
 
         // println!("{:?} {:?}", layout.bounds(), &viewport);
 
@@ -220,6 +230,9 @@ LIMIT ? OFFSET ?",
         let mut x = self.spacing;
         let mut y = self.spacing + (offset / columns) as f32 * (self.tile_h + self.spacing);
         for (i, row) in file_iter.enumerate() {
+            let span_fileiter = span!(Level::TRACE, "draw/fileiter");
+            let _guard_fileiter = span_fileiter.enter();
+
             // Mark tile as selected when appropriate.
             if self.offset_selected(offset + i as u32) {
                 renderer.fill_quad(
@@ -299,6 +312,9 @@ LIMIT ? OFFSET ?",
         // Show locations of image file in a hovering tooltip at cursor position.
         // println!("cursor: {:?}", cursor);
         if let Some(hovered_offset) = self.xy_to_offset(&layout, cursor) {
+            let span_draw_tooltip = span!(Level::TRACE, "draw/tooltip");
+            let _guard_draw_tooltip = span_draw_tooltip.enter();
+
             // println!("hovered_offset: {:?}", hovered_offset);
             let locations = db
                 .prepare_cached(

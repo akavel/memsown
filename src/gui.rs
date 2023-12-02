@@ -1,4 +1,5 @@
 use iced::pure::{row, scrollable, Application, Element};
+use tracing::{Level, span};
 
 use crate::db::SyncedDb;
 use crate::interlude::*;
@@ -49,6 +50,9 @@ impl Application for Gui {
     }
 
     fn update(&mut self, message: Self::Message) -> iced::Command<Self::Message> {
+        let prof_span = span!(Level::TRACE, "gui::update");
+        let _enter = prof_span.enter();
+
         // TODO: when GallerySelect received, save file IDs, so that their tags can be easily
         // updated in DB when a tag is toggled
         match message {
@@ -72,6 +76,9 @@ impl Application for Gui {
     }
 
     fn view(&self) -> Element<Self::Message> {
+        let prof_span = span!(Level::TRACE, "gui::view");
+        let _enter = prof_span.enter();
+
         // FIXME: Milestone: detect click
         // FIXME: Milestone: add preview window on click
         // FIXME: Milestone: show some info about where img is present
@@ -92,6 +99,9 @@ impl Application for Gui {
 
 impl Gui {
     fn load_tags_for_selection(&mut self) {
+        let prof_span = span!(Level::TRACE, "gui::load_tags_for_selection");
+        let _enter = prof_span.enter();
+
         let db = self.db.lock().unwrap();
 // FIXME: use a list of rowids as selection, instead of limit+offset
         let sql = r"

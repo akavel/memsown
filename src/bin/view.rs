@@ -1,6 +1,6 @@
 use iced::pure::Application;
 use tracing_chrome::ChromeLayerBuilder as ChromiumTracingBuilder;
-use tracing_subscriber::{registry::Registry, prelude::*};
+use tracing_subscriber::prelude::*;
 
 use backer::db;
 use backer::gui::Gui;
