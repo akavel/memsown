@@ -11,7 +11,15 @@ rust-version = "1.74"
 opt-level = 1
 
 [dev-dependencies]
+criterion = "0.5"
 tempfile = "3.3"
+
+[[bench]]
+# Builtin benchmark harness is nightly-only at the time of writing, so we
+# use `criterion` crate, which then requires disabling the builtin
+# harness.
+name = "bench_gallery_files"
+harness = false
 
 [dependencies]
 anyhow = "1.0"
