@@ -37,6 +37,11 @@ fn setup_db_with_tags() -> db::Connection {
     let id_file3 = conn.last_insert_rowid();
 
     // FIXME: connect tags with files - table file_tag
+    let sql = "INSERT INTO file_tag(file_id, tag_id) VALUES(?,?)";
+    conn.execute(sql, params![id_file1, id_tag_foo]).unwrap();
+    conn.execute(sql, params![id_file1, id_tag_bar]).unwrap();
+    conn.execute(sql, params![id_file2, id_tag_foo]).unwrap();
+    conn.execute(sql, params![id_file3, id_tag_bar]).unwrap();
 
     conn
 }
