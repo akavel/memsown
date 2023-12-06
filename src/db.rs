@@ -14,9 +14,9 @@ pub fn open(path: impl AsRef<Path>) -> Result<SyncedDb> {
     Ok(Arc::new(Mutex::new(db)))
 }
 
-#[cfg(bench)]
+// FIXME: #[cfg(bench)] -- why is this not working with `cargo bench`?
 pub fn open_in_memory() -> Connection {
-    let db = open_in_memory().unwrap();
+    let db = Connection::open_in_memory().unwrap();
     init(&db).unwrap();
     db
 }

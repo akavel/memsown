@@ -1,5 +1,7 @@
 use chrono::naive::{NaiveDate, NaiveDateTime};
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use rusqlite::params;
+use backer::{model, db};
 
 pub fn bench_gallery_files(c: &mut Criterion) {
     // c.bench_function("1) with tags", |b| b.iter(|| 
@@ -33,6 +35,8 @@ pub fn bench_gallery_files(c: &mut Criterion) {
                 let file = row.unwrap();
                 black_box(file);
             }
+            // query
+            drop(query);
             conn
         }, criterion::BatchSize::LargeInput);
     });
@@ -41,7 +45,7 @@ pub fn bench_gallery_files(c: &mut Criterion) {
 criterion_group!(benches, bench_gallery_files);
 criterion_main!(benches);
 
-fn setup_db_with_tags() -> db::Connection {
+fn setup_db_with_tags() -> rusqlite::Connection {
     // FIXME: for benchmarks, should we use on-disk database for consistency with real-life results?
     let conn = db::open_in_memory();
 
