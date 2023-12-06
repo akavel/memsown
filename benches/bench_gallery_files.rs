@@ -6,7 +6,7 @@ use backer::{model, db};
 pub fn bench_gallery_files(c: &mut Criterion) {
     // c.bench_function("1) with tags", |b| b.iter(|| 
     c.bench_function("troubling_select_with_tags", |b| {
-        b.iter_batched(|| setup_db_with_tags(), |mut conn| {
+        b.iter_batched(|| setup_db_with_tags(), |conn| {
             let mut query = conn
                 .prepare_cached(
                     r"
@@ -31,11 +31,40 @@ pub fn bench_gallery_files(c: &mut Criterion) {
                     })
                 })
                 .unwrap();
-            for (i, row) in file_iter.enumerate() {
+            for (_i, row) in file_iter.enumerate() {
                 let file = row.unwrap();
                 black_box(file);
             }
-            // query
+            drop(query);
+            conn
+        }, criterion::BatchSize::LargeInput);
+    });
+
+    c.bench_function("old_select_no_tags", |b| {
+        b.iter_batched(|| setup_db_with_tags(), |conn| {
+            let mut query = conn
+                .prepare_cached(r"
+    SELECT hash, date, thumbnail
+    FROM file
+    ORDER BY date
+    LIMIT ? OFFSET ?",
+                )
+                .unwrap();
+            let limit = 100;
+            let offset = 0;
+            let file_iter = query
+                .query_map(params!(limit, offset), |row| {
+                    Ok(crate::model::FileInfo {
+                        hash: row.get_unwrap(0),
+                        date: row.get_unwrap(1),
+                        thumb: row.get_unwrap(2),
+                    })
+                })
+                .unwrap();
+            for (_i, row) in file_iter.enumerate() {
+                let file = row.unwrap();
+                black_box(file);
+            }
             drop(query);
             conn
         }, criterion::BatchSize::LargeInput);
@@ -60,17 +89,17 @@ fn setup_db_with_tags() -> rusqlite::Connection {
     let id_tag_bar = conn.last_insert_rowid();
 
     // sample files
-    let sql = "INSERT INTO file(hash, date) VALUES(?,?)";
+    let sql = "INSERT INTO file(hash, date, thumbnail) VALUES(?,?,?)";
     let date: Option<NaiveDateTime> = None;
-    conn.execute(sql, params!["hash1", date]).unwrap();
+    conn.execute(sql, params!["hash1", date, vec![0u8]]).unwrap();
     let id_file1 = conn.last_insert_rowid();
     let date: Option<NaiveDateTime> = Some(NaiveDate::from_ymd(
             2023,12,05).and_hms(8,53,12));
-    conn.execute(sql, params!["hash2", date]).unwrap();
+    conn.execute(sql, params!["hash2", date, vec![0u8]]).unwrap();
     let id_file2 = conn.last_insert_rowid();
     let date: Option<NaiveDateTime> = Some(NaiveDate::from_ymd(
             2022,01,02).and_hms(16,00,01));
-    conn.execute(sql, params!["hash3", date]).unwrap();
+    conn.execute(sql, params!["hash3", date, vec![0u8]]).unwrap();
     let id_file3 = conn.last_insert_rowid();
 
     // FIXME: connect tags with files - table file_tag
