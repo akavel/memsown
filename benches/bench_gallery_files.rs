@@ -3,6 +3,39 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
 pub fn bench_gallery_files(c: &mut Criterion) {
     // c.bench_function("1) with tags", |b| b.iter(|| 
+    c.bench_function("troubling_select_with_tags", |b| {
+        b.iter_batched(|| setup_db_with_tags(), |mut conn| {
+            let mut query = conn
+                .prepare_cached(
+                    r"
+    SELECT hash, date, thumbnail
+    FROM file
+    LEFT JOIN file_tag ON file.rowid = file_tag.file_id
+    LEFT JOIN tag ON tag.rowid = file_tag.tag_id
+    GROUP BY file.rowid
+    HAVING count(hidden)=0
+    ORDER BY date
+    LIMIT ? OFFSET ?",
+                )
+                .unwrap();
+            let limit = 100;
+            let offset = 0;
+            let file_iter = query
+                .query_map(params!(limit, offset), |row| {
+                    Ok(crate::model::FileInfo {
+                        hash: row.get_unwrap(0),
+                        date: row.get_unwrap(1),
+                        thumb: row.get_unwrap(2),
+                    })
+                })
+                .unwrap();
+            for (i, row) in file_iter.enumerate() {
+                let file = row.unwrap();
+                black_box(file);
+            }
+            conn
+        }, criterion::BatchSize::LargeInput);
+    });
 }
 
 criterion_group!(benches, bench_gallery_files);
