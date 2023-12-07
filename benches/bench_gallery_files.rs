@@ -2,6 +2,7 @@ use chrono::naive::{NaiveDate, NaiveDateTime};
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use rusqlite::params;
 use backer::{model, db};
+use core::ops::{Deref, DerefMut};
 
 pub fn bench_gallery_files(c: &mut Criterion) {
     c.bench_function("troubling_select_with_tags", |b| {
@@ -78,9 +79,37 @@ pub fn bench_gallery_files(c: &mut Criterion) {
 criterion_group!(benches, bench_gallery_files);
 criterion_main!(benches);
 
-fn setup_db_with_tags() -> rusqlite::Connection {
+struct TempDb {
+    conn: rusqlite::Connection,
+    path: tempfile::TempPath,
+}
+
+impl TempDb {
+    fn new() -> Self {
+        let file = tempfile::NamedTempFile::new().unwrap();
+        let path = file.into_temp_path();
+        let conn = db::SyncedDb::try_unwrap(db::open(&path).unwrap()).unwrap().into_inner().unwrap();
+        Self { path, conn }
+    }
+}
+
+impl Deref for TempDb {
+    type Target = rusqlite::Connection;
+    fn deref(&self) -> &Self::Target {
+        &self.conn
+    }
+}
+
+impl DerefMut for TempDb {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.conn
+    }
+}
+
+fn setup_db_with_tags() -> TempDb {
     // FIXME: for benchmarks, should we use on-disk database for consistency with real-life results?
-    let conn = db::open_in_memory();
+    // let conn = db::open_in_memory();
+    let conn = TempDb::new();
 
     // insert some sample data
     // TODO: write helper macro to reduce repetition & improve readability
