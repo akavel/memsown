@@ -31,11 +31,16 @@ pub fn bench_gallery_files(c: &mut Criterion) {
                     })
                 })
                 .unwrap();
+            let mut rows = 0;
             for (_i, row) in file_iter.enumerate() {
                 let file = row.unwrap();
                 black_box(file);
+                rows += 1;
             }
             drop(query);
+            if rows == 0 {
+                panic!("rows==0");
+            }
             conn
         }, criterion::BatchSize::LargeInput);
     });
