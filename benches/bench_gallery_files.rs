@@ -4,7 +4,6 @@ use rusqlite::params;
 use backer::{model, db};
 
 pub fn bench_gallery_files(c: &mut Criterion) {
-    // c.bench_function("1) with tags", |b| b.iter(|| 
     c.bench_function("troubling_select_with_tags", |b| {
         b.iter_batched(|| setup_db_with_tags(), |conn| {
             let mut query = conn
