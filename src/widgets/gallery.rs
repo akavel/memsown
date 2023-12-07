@@ -211,7 +211,7 @@ FROM file
 LEFT JOIN file_tag ON file.rowid = file_tag.file_id
 LEFT JOIN tag ON tag.rowid = file_tag.tag_id
 GROUP BY file.rowid
-HAVING count(hidden)=0
+HAVING sum(hidden)=0
 ORDER BY date
 LIMIT ? OFFSET ?",
             )
