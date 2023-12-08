@@ -5,6 +5,7 @@ use backer::{model, db};
 use core::ops::{Deref, DerefMut};
 
 pub fn bench_gallery_files(c: &mut Criterion) {
+    // TODO: how to set target time at 16sec, to avoid warning message about auto-extension?
     c.bench_function("troubling_select_with_tags", |b| {
         b.iter_batched(|| setup_db_with_tags(), |conn| {
             let mut query = conn
