@@ -8,7 +8,7 @@ pub fn bench_gallery_files(c: &mut Criterion) {
     // TODO: how to set target time at 16sec, to avoid warning message about auto-extension?
     c.bench_function("troubling_select_with_tags", |b| {
         b.iter_batched(|| setup_db_with_tags(), |conn| {
-            let mut query = conn
+            let query = conn
                 .prepare_cached(
                     r"
     SELECT hash, date, thumbnail
@@ -21,34 +21,14 @@ pub fn bench_gallery_files(c: &mut Criterion) {
     LIMIT ? OFFSET ?",
                 )
                 .unwrap();
-            let limit = 100;
-            let offset = 0;
-            let file_iter = query
-                .query_map(params!(limit, offset), |row| {
-                    Ok(crate::model::FileInfo {
-                        hash: row.get_unwrap(0),
-                        date: row.get_unwrap(1),
-                        thumb: row.get_unwrap(2),
-                    })
-                })
-                .unwrap();
-            let mut rows = 0;
-            for (_i, row) in file_iter.enumerate() {
-                let file = row.unwrap();
-                black_box(file);
-                rows += 1;
-            }
-            drop(query);
-            if rows == 0 {
-                panic!("rows==0");
-            }
+            iterate_query(query);
             conn
         }, criterion::BatchSize::LargeInput);
     });
 
     c.bench_function("old_select_no_tags", |b| {
         b.iter_batched(|| setup_db_with_tags(), |conn| {
-            let mut query = conn
+            let query = conn
                 .prepare_cached(r"
     SELECT hash, date, thumbnail
     FROM file
@@ -56,22 +36,7 @@ pub fn bench_gallery_files(c: &mut Criterion) {
     LIMIT ? OFFSET ?",
                 )
                 .unwrap();
-            let limit = 100;
-            let offset = 0;
-            let file_iter = query
-                .query_map(params!(limit, offset), |row| {
-                    Ok(crate::model::FileInfo {
-                        hash: row.get_unwrap(0),
-                        date: row.get_unwrap(1),
-                        thumb: row.get_unwrap(2),
-                    })
-                })
-                .unwrap();
-            for (_i, row) in file_iter.enumerate() {
-                let file = row.unwrap();
-                black_box(file);
-            }
-            drop(query);
+            iterate_query(query);
             conn
         }, criterion::BatchSize::LargeInput);
     });
@@ -82,6 +47,7 @@ criterion_main!(benches);
 
 struct TempDb {
     conn: rusqlite::Connection,
+    #[allow(dead_code)] // TODO[LATER]: why needed?
     path: tempfile::TempPath,
 }
 
@@ -144,4 +110,27 @@ fn setup_db_with_tags() -> TempDb {
     conn.execute(sql, params![id_file3, id_tag_bar]).unwrap();
 
     conn
+}
+
+fn iterate_query(mut query: rusqlite::CachedStatement) {
+    let limit = 100;
+    let offset = 0;
+    let file_iter = query
+        .query_map(params!(limit, offset), |row| {
+            Ok(crate::model::FileInfo {
+                hash: row.get_unwrap(0),
+                date: row.get_unwrap(1),
+                thumb: row.get_unwrap(2),
+            })
+        })
+        .unwrap();
+    let mut rows = 0;
+    for (_i, row) in file_iter.enumerate() {
+        let file = row.unwrap();
+        black_box(file);
+        rows += 1;
+    }
+    if rows == 0 {
+        panic!("rows==0");
+    }
 }
