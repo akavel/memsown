@@ -40,6 +40,34 @@ pub fn bench_gallery_files(c: &mut Criterion) {
             conn
         }, criterion::BatchSize::LargeInput);
     });
+
+    // Disabled: even worse performance than "troubling_select_with_tags".
+    /*
+    c.bench_function("inner_select_fileid_not_in_hidden_tags", |b| {
+        b.iter_batched(|| setup_db_with_tags(), |conn| {
+            // Find files without 'hidden' tag; optimizing for relatively "not many"
+            let query = conn
+                .prepare_cached(r"
+    SELECT hash, date, thumbnail
+    FROM file
+    WHERE file.rowid NOT IN (
+      SELECT file_id AS hidden_file
+      FROM file_tag
+      WHERE tag_id IN (
+        SELECT ROWID
+        FROM tag
+        WHERE hidden IS TRUE
+      )
+    )
+    ORDER BY date
+    LIMIT ? OFFSET ?",
+                )
+                .unwrap();
+            iterate_query(query);
+            conn
+        }, criterion::BatchSize::LargeInput);
+    });
+    */
 }
 
 criterion_group!(benches, bench_gallery_files);
