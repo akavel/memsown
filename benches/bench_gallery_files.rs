@@ -21,7 +21,7 @@ pub fn bench_gallery_files(c: &mut Criterion) {
     LIMIT ? OFFSET ?",
                 )
                 .unwrap();
-            iterate_query(query);
+            assert_eq!(iterate_query(query), 1);
             conn
         }, criterion::BatchSize::LargeInput);
     });
@@ -36,7 +36,7 @@ pub fn bench_gallery_files(c: &mut Criterion) {
     LIMIT ? OFFSET ?",
                 )
                 .unwrap();
-            iterate_query(query);
+            assert_eq!(iterate_query(query), 3);
             conn
         }, criterion::BatchSize::LargeInput);
     });
@@ -140,7 +140,7 @@ fn setup_db_with_tags() -> TempDb {
     conn
 }
 
-fn iterate_query(mut query: rusqlite::CachedStatement) {
+fn iterate_query(mut query: rusqlite::CachedStatement) -> i32 {
     let limit = 100;
     let offset = 0;
     let file_iter = query
@@ -161,4 +161,5 @@ fn iterate_query(mut query: rusqlite::CachedStatement) {
     if rows == 0 {
         panic!("rows==0");
     }
+    rows
 }
