@@ -41,6 +41,22 @@ pub fn bench_gallery_files(c: &mut Criterion) {
         }, criterion::BatchSize::LargeInput);
     });
 
+    c.bench_function("select_with_cached_hidden", |b| {
+        b.iter_batched(|| setup_db_with_tags(), |conn| {
+            let query = conn
+                .prepare_cached(r"
+    SELECT hash, date, thumbnail
+    FROM file
+    WHERE _hidden IS FALSE
+    ORDER BY date
+    LIMIT ? OFFSET ?",
+                )
+                .unwrap();
+            assert_eq!(iterate_query(query), 1);
+            conn
+        }, criterion::BatchSize::LargeInput);
+    });
+
     // Disabled: even worse performance than "troubling_select_with_tags".
     /*
     c.bench_function("inner_select_fileid_not_in_hidden_tags", |b| {
@@ -117,17 +133,17 @@ fn setup_db_with_tags() -> TempDb {
     let id_tag_bar = conn.last_insert_rowid();
 
     // sample files
-    let sql = "INSERT INTO file(hash, date, thumbnail) VALUES(?,?,?)";
+    let sql = "INSERT INTO file(hash, date, thumbnail, _hidden) VALUES(?,?,?,?)";
     let date: Option<NaiveDateTime> = None;
-    conn.execute(sql, params!["hash1", date, vec![0u8]]).unwrap();
+    conn.execute(sql, params!["hash1", date, vec![], true]).unwrap();
     let id_file1 = conn.last_insert_rowid();
     let date: Option<NaiveDateTime> = Some(NaiveDate::from_ymd(
             2023,12,05).and_hms(8,53,12));
-    conn.execute(sql, params!["hash2", date, vec![0u8]]).unwrap();
+    conn.execute(sql, params!["hash2", date, vec![], true]).unwrap();
     let id_file2 = conn.last_insert_rowid();
     let date: Option<NaiveDateTime> = Some(NaiveDate::from_ymd(
             2022,01,02).and_hms(16,00,01));
-    conn.execute(sql, params!["hash3", date, vec![0u8]]).unwrap();
+    conn.execute(sql, params!["hash3", date, vec![], false]).unwrap();
     let id_file3 = conn.last_insert_rowid();
 
     // FIXME: connect tags with files - table file_tag

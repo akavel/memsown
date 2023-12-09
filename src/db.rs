@@ -29,7 +29,10 @@ pub fn init(db: &Connection) -> rusqlite::Result<()> {
               CHECK(length(hash) > 0),
             date TEXT,
             thumbnail BLOB
+            -- _hidden -- cached denorm.; see ALTER TABLE below
           );
+          ALTER TABLE file ADD COLUMN
+            _hidden BOOLEAN DEFAULT FALSE NOT NULL;
           CREATE INDEX IF NOT EXISTS file_date ON file(date);
 
           CREATE TABLE IF NOT EXISTS location (
