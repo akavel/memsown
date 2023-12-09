@@ -21,7 +21,7 @@ pub fn bench_gallery_files(c: &mut Criterion) {
     LIMIT ? OFFSET ?",
                 )
                 .unwrap();
-            assert_eq!(iterate_query(query), 1);
+            assert_eq!(iterate_query(query), 3);
             conn
         }, criterion::BatchSize::LargeInput);
     });
@@ -36,7 +36,7 @@ pub fn bench_gallery_files(c: &mut Criterion) {
     LIMIT ? OFFSET ?",
                 )
                 .unwrap();
-            assert_eq!(iterate_query(query), 3);
+            assert_eq!(iterate_query(query), 5);
             conn
         }, criterion::BatchSize::LargeInput);
     });
@@ -52,7 +52,7 @@ pub fn bench_gallery_files(c: &mut Criterion) {
     LIMIT ? OFFSET ?",
                 )
                 .unwrap();
-            assert_eq!(iterate_query(query), 1);
+            assert_eq!(iterate_query(query), 3);
             conn
         }, criterion::BatchSize::LargeInput);
     });
@@ -142,9 +142,17 @@ fn setup_db_with_tags() -> TempDb {
     conn.execute(sql, params!["hash2", date, vec![], true]).unwrap();
     let id_file2 = conn.last_insert_rowid();
     let date: Option<NaiveDateTime> = Some(NaiveDate::from_ymd(
-            2022,01,02).and_hms(16,00,01));
+            2022,01,02).and_hms(16,00,03));
     conn.execute(sql, params!["hash3", date, vec![], false]).unwrap();
     let id_file3 = conn.last_insert_rowid();
+    let date: Option<NaiveDateTime> = Some(NaiveDate::from_ymd(
+            2022,01,02).and_hms(16,00,04));
+    conn.execute(sql, params!["hash4", date, vec![], false]).unwrap();
+    let id_file4 = conn.last_insert_rowid();
+    let date: Option<NaiveDateTime> = Some(NaiveDate::from_ymd(
+            2022,01,02).and_hms(16,00,05));
+    conn.execute(sql, params!["hash5", date, vec![], false]).unwrap();
+    let id_file5 = conn.last_insert_rowid();
 
     // FIXME: connect tags with files - table file_tag
     let sql = "INSERT INTO file_tag(file_id, tag_id) VALUES(?,?)";
@@ -152,6 +160,8 @@ fn setup_db_with_tags() -> TempDb {
     conn.execute(sql, params![id_file1, id_tag_bar]).unwrap();
     conn.execute(sql, params![id_file2, id_tag_foo]).unwrap();
     conn.execute(sql, params![id_file3, id_tag_bar]).unwrap();
+    conn.execute(sql, params![id_file4, id_tag_bar]).unwrap();
+    conn.execute(sql, params![id_file5, id_tag_bar]).unwrap();
 
     conn
 }
