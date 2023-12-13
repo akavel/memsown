@@ -41,6 +41,9 @@ pub fn bench_gallery_files(c: &mut Criterion) {
         }, criterion::BatchSize::LargeInput);
     });
 
+    // Disabled: actually whole benchmark seems unnecessary as of today - I misread microseconds as
+    // milliseconds when profiling...
+    /*
     c.bench_function("select_with_cached_hidden", |b| {
         b.iter_batched(|| setup_db_with_tags(), |conn| {
             let query = conn
@@ -56,6 +59,7 @@ pub fn bench_gallery_files(c: &mut Criterion) {
             conn
         }, criterion::BatchSize::LargeInput);
     });
+    */
 
     // Disabled: even worse performance than "troubling_select_with_tags".
     /*
