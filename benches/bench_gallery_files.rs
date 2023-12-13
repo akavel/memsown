@@ -16,7 +16,7 @@ pub fn bench_gallery_files(c: &mut Criterion) {
     LEFT JOIN file_tag ON file.rowid = file_tag.file_id
     LEFT JOIN tag ON tag.rowid = file_tag.tag_id
     GROUP BY file.rowid
-    HAVING sum(hidden)=0
+    HAVING sum(ifnull(hidden,0))=0
     ORDER BY date
     LIMIT ? OFFSET ?",
                 )
