@@ -203,15 +203,30 @@ where
         // TODO[LATER]: think whether to remove .unwrap()
         let span_filequery_init = span!(Level::TRACE, "draw/filequery_init");
         let guard_filequery_init = span_filequery_init.enter();
-        let mut query = db
-            .prepare_cached(
-                r"
+/*
 SELECT hash, date, thumbnail
 FROM file
 LEFT JOIN file_tag ON file.rowid = file_tag.file_id
 LEFT JOIN tag ON tag.rowid = file_tag.tag_id
 GROUP BY file.rowid
 HAVING sum(ifnull(hidden,0))=0
+ORDER BY date
+LIMIT ? OFFSET ?",
+ */
+        let mut query = db
+            .prepare_cached(
+                r"
+SELECT hash, date, thumbnail
+FROM file
+WHERE file.rowid NOT IN (
+  SELECT file_id AS hidden_file
+  FROM file_tag
+  WHERE tag_id IN (
+    SELECT ROWID
+    FROM tag
+    WHERE hidden IS TRUE
+  )
+)
 ORDER BY date
 LIMIT ? OFFSET ?",
             )
