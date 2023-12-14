@@ -347,6 +347,13 @@ LIMIT ? OFFSET ?",
             // println!("hovered_offset: {:?}", hovered_offset);
             let span_locations = span!(Level::TRACE, "draw/locations");
             let guard_locations = span_locations.enter();
+/*
+    LEFT JOIN file_tag ON file.rowid = file_tag.file_id
+    LEFT JOIN tag ON tag.rowid = file_tag.tag_id
+    GROUP BY file.rowid
+    HAVING sum(ifnull(hidden,0))=0
+    ORDER BY date
+ */
             let locations = db
                 .prepare_cached(
                     // FIXME: somehow unify internal query with the
@@ -356,10 +363,15 @@ SELECT backend_tag, path
 FROM location
 WHERE file_id = (SELECT file.rowid
     FROM file
-    LEFT JOIN file_tag ON file.rowid = file_tag.file_id
-    LEFT JOIN tag ON tag.rowid = file_tag.tag_id
-    GROUP BY file.rowid
-    HAVING count(hidden)=0
+    WHERE file.rowid NOT IN (
+      SELECT file_id AS hidden_file
+      FROM file_tag
+      WHERE tag_id IN (
+        SELECT ROWID
+        FROM tag
+        WHERE hidden IS TRUE
+      )
+    )
     ORDER BY date
     LIMIT 1 OFFSET ?)
 ORDER BY backend_tag ASC, path ASC",
