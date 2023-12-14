@@ -21,7 +21,8 @@ pub fn bench_gallery_files(c: &mut Criterion) {
     LIMIT ? OFFSET ?",
                 )
                 .unwrap();
-            assert_eq!(iterate_query(query), 3);
+            iterate_query(query);
+            // assert_eq!(iterate_query(query), 3);
             conn
         }, criterion::BatchSize::LargeInput);
     });
@@ -36,7 +37,29 @@ pub fn bench_gallery_files(c: &mut Criterion) {
     LIMIT ? OFFSET ?",
                 )
                 .unwrap();
-            assert_eq!(iterate_query(query), 5);
+            iterate_query(query);
+            // assert_eq!(iterate_query(query), 5);
+            conn
+        }, criterion::BatchSize::LargeInput);
+    });
+
+    c.bench_function("same_as_troubling_but_empty_thumbs", |b| {
+        b.iter_batched(|| setup_db_with_tags(), |conn| {
+            let query = conn
+                .prepare_cached(
+                    r"
+    SELECT hash, date, zeroblob(0) AS empty_thumbnail
+    FROM file
+    LEFT JOIN file_tag ON file.rowid = file_tag.file_id
+    LEFT JOIN tag ON tag.rowid = file_tag.tag_id
+    GROUP BY file.rowid
+    HAVING sum(ifnull(hidden,0))=0
+    ORDER BY date
+    LIMIT ? OFFSET ?",
+                )
+                .unwrap();
+            iterate_query(query);
+            // assert_eq!(iterate_query(query), 3);
             conn
         }, criterion::BatchSize::LargeInput);
     });
@@ -61,13 +84,12 @@ pub fn bench_gallery_files(c: &mut Criterion) {
     });
     */
 
-    // Disabled: even worse performance than "troubling_select_with_tags".
-    /*
     c.bench_function("inner_select_fileid_not_in_hidden_tags", |b| {
         b.iter_batched(|| setup_db_with_tags(), |conn| {
             // Find files without 'hidden' tag; optimizing for relatively "not many"
             let query = conn
                 .prepare_cached(r"
+    --SELECT hash, date, zeroblob(0) AS empty_thumbnail
     SELECT hash, date, thumbnail
     FROM file
     WHERE file.rowid NOT IN (
@@ -87,7 +109,6 @@ pub fn bench_gallery_files(c: &mut Criterion) {
             conn
         }, criterion::BatchSize::LargeInput);
     });
-    */
 }
 
 criterion_group!(benches, bench_gallery_files);
@@ -95,17 +116,17 @@ criterion_main!(benches);
 
 struct TempDb {
     conn: rusqlite::Connection,
-    #[allow(dead_code)] // TODO[LATER]: why needed?
-    path: tempfile::TempPath,
+    // #[allow(dead_code)] // TODO[LATER]: why needed?
+    // path: tempfile::TempPath,
 }
 
 impl TempDb {
-    fn new() -> Self {
-        let file = tempfile::NamedTempFile::new().unwrap();
-        let path = file.into_temp_path();
-        let conn = db::SyncedDb::try_unwrap(db::open(&path).unwrap()).unwrap().into_inner().unwrap();
-        Self { path, conn }
-    }
+    // fn new() -> Self {
+    //     let file = tempfile::NamedTempFile::new().unwrap();
+    //     let path = file.into_temp_path();
+    //     let conn = db::SyncedDb::try_unwrap(db::open(&path).unwrap()).unwrap().into_inner().unwrap();
+    //     Self { path, conn }
+    // }
 }
 
 impl Deref for TempDb {
@@ -122,10 +143,12 @@ impl DerefMut for TempDb {
 }
 
 fn setup_db_with_tags() -> TempDb {
-    // FIXME: for benchmarks, should we use on-disk database for consistency with real-life results?
-    // let conn = db::open_in_memory();
-    let conn = TempDb::new();
+    let conn = rusqlite::Connection::open("backer.db").unwrap();
+    db::init(&conn).unwrap();
+    let conn = TempDb { conn };
 
+
+    /*
     // insert some sample data
     // TODO: write helper macro to reduce repetition & improve readability
 
@@ -166,12 +189,13 @@ fn setup_db_with_tags() -> TempDb {
     conn.execute(sql, params![id_file3, id_tag_bar]).unwrap();
     conn.execute(sql, params![id_file4, id_tag_bar]).unwrap();
     conn.execute(sql, params![id_file5, id_tag_bar]).unwrap();
+    */
 
     conn
 }
 
 fn iterate_query(mut query: rusqlite::CachedStatement) -> i32 {
-    let limit = 100;
+    let limit = 30;
     let offset = 0;
     let file_iter = query
         .query_map(params!(limit, offset), |row| {

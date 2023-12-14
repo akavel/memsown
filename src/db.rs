@@ -14,13 +14,6 @@ pub fn open(path: impl AsRef<Path>) -> Result<SyncedDb> {
     Ok(Arc::new(Mutex::new(db)))
 }
 
-// FIXME: #[cfg(bench)] -- why is this not working with `cargo bench`?
-pub fn open_in_memory() -> Connection {
-    let db = Connection::open_in_memory().unwrap();
-    init(&db).unwrap();
-    db
-}
-
 pub fn init(db: &Connection) -> rusqlite::Result<()> {
     db.execute_batch(
         "
