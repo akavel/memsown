@@ -203,16 +203,6 @@ where
         // TODO[LATER]: think whether to remove .unwrap()
         let span_filequery_init = span!(Level::TRACE, "draw/filequery_init");
         let guard_filequery_init = span_filequery_init.enter();
-/*
-SELECT hash, date, thumbnail
-FROM file
-LEFT JOIN file_tag ON file.rowid = file_tag.file_id
-LEFT JOIN tag ON tag.rowid = file_tag.tag_id
-GROUP BY file.rowid
-HAVING sum(ifnull(hidden,0))=0
-ORDER BY date
-LIMIT ? OFFSET ?",
- */
         let mut query = db
             .prepare_cached(
                 r"
@@ -347,13 +337,6 @@ LIMIT ? OFFSET ?",
             // println!("hovered_offset: {:?}", hovered_offset);
             let span_locations = span!(Level::TRACE, "draw/locations");
             let guard_locations = span_locations.enter();
-/*
-    LEFT JOIN file_tag ON file.rowid = file_tag.file_id
-    LEFT JOIN tag ON tag.rowid = file_tag.tag_id
-    GROUP BY file.rowid
-    HAVING sum(ifnull(hidden,0))=0
-    ORDER BY date
- */
             let locations = db
                 .prepare_cached(
                     // FIXME: somehow unify internal query with the
