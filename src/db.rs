@@ -10,6 +10,10 @@ pub type SyncedDb = Arc<Mutex<Connection>>;
 
 pub type SqlValue = rusqlite::types::Value;
 
+/// "...SQLite tables have a 64-bit signed integer key (...) usually called the 'rowid'..."
+/// (https://sqlite.org/lang_createtable.html#rowid)
+pub type Rowid = i64;
+
 pub fn open(path: impl AsRef<Path>) -> Result<SyncedDb> {
     let db = Connection::open(path.as_ref())?;
     init(&db)?;
