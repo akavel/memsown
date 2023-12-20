@@ -8,6 +8,8 @@ use crate::interlude::*;
 // TODO[LATER]: use Arc<RwLock<T>> instead of Arc<Mutex<T>>
 pub type SyncedDb = Arc<Mutex<Connection>>;
 
+pub type SqlValue = rusqlite::types::Value;
+
 pub fn open(path: impl AsRef<Path>) -> Result<SyncedDb> {
     let db = Connection::open(path.as_ref())?;
     init(&db)?;
@@ -15,6 +17,7 @@ pub fn open(path: impl AsRef<Path>) -> Result<SyncedDb> {
 }
 
 pub fn init(db: &Connection) -> rusqlite::Result<()> {
+    rusqlite::vtab::array::load_module(&db)?;
     db.execute_batch(
         "
           CREATE TABLE IF NOT EXISTS file (
@@ -139,9 +142,10 @@ impl Iterator for LooseIterator {
 
 #[cfg(test)]
 mod test {
+    use std::rc::Rc;
     use chrono::NaiveDate;
 
-    use crate::db;
+    use crate::{db, db::SqlValue};
     use crate::model::FileInfo;
 
     fn all_files(conn: &db::Connection) -> Vec<FileInfo> {
@@ -157,6 +161,19 @@ mod test {
             .unwrap()
             .map(|x| x.unwrap())
             .collect()
+    }
+
+    #[test]
+    fn rusqlite_feat_array() {
+        let conn = rusqlite::Connection::open_in_memory().unwrap();
+        db::init(&conn).unwrap();
+        let raw_vals = [1i64, 2, 3, 4];
+        // Note: a `Rc<Vec<SqlValue>>` must be used as the parameter.
+        let wrapped_vals = Rc::new(raw_vals.iter().copied().map(SqlValue::from).collect::<Vec<_>>());
+        let mut stmt = conn.prepare("SELECT value FROM rarray(?);").unwrap();
+        let rows = stmt.query_map([wrapped_vals], |row| row.get::<_, i64>(0)).unwrap();
+        let got = rows.into_iter().map(|v| v.unwrap()).collect::<Vec<i64>>();
+        assert_eq!(raw_vals, &got[..]);
     }
 
     #[test]
