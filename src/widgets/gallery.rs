@@ -113,6 +113,9 @@ impl<Message> Gallery<Message> {
         Some(row * self.columns(layout) + col)
     }
 
+    fn offset_to_rowid(offset: u32) -> Option<db::Rowid> {
+    }
+
     fn offset_selected(&self, offset: u32) -> bool {
         self.selection.range().contains(&offset)
     }
