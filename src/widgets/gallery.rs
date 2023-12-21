@@ -14,6 +14,7 @@ use itertools::Itertools;
 use rusqlite::params;
 use tracing::{Level, span};
 
+use crate::db;
 use crate::interlude::*;
 
 pub struct Gallery<Message> {
@@ -26,35 +27,33 @@ pub struct Gallery<Message> {
     on_select: Option<Box<dyn Fn(Selection) -> Message>>,
 }
 
-#[derive(Copy, Clone, Default, Debug)]
+#[derive(Clone, Default, Debug)]
 pub struct Selection {
-    // TODO[LATER]: usize or u32 or what?
-    /// Item clicked initially.
-    pub initial: u32,
-    /// Item clicked last.
-    pub last: u32,
+    pub rowids: Vec<db::Rowid>,
+    //// TODO[LATER]: usize or u32 or what?
+    ///// Item clicked initially.
+    //pub initial: u32,
+    ///// Item clicked last.
+    //pub last: u32,
 }
 
 impl Selection {
-    pub fn single(idx: u32) -> Self {
-        Self {
-            initial: idx,
-            last: idx,
-        }
+    pub fn single(rowid: db::Rowid) -> Self {
+        Self { rowids: vec![rowid] }
     }
 
-    pub fn range(&self) -> RangeInclusive<u32> {
-        if self.initial <= self.last {
-            self.initial..=self.last
-        } else {
-            self.last..=self.initial
-        }
-    }
+    //pub fn range(&self) -> RangeInclusive<u32> {
+    //    if self.initial <= self.last {
+    //        self.initial..=self.last
+    //    } else {
+    //        self.last..=self.initial
+    //    }
+    //}
 }
 
 #[derive(Default)]
 struct InternalState {
-    selecting: bool,
+    selecting_from_offset: Option<u32>,
 }
 
 impl<'a> From<&'a mut Tree> for &'a mut InternalState {
@@ -413,24 +412,27 @@ ORDER BY backend_tag ASC, path ASC",
         use iced::mouse::{Button, Event::*};
         let state: &mut InternalState = tree.into();
         match event {
-            Event::Mouse(ButtonPressed(Button::Left)) => {
-                if let Some(i) = self.xy_to_offset(&layout, cursor_position) {
-                    self.selection = Selection::single(i);
-                    state.selecting = true;
-                    // println!("PRESS: {:?} i={}", cursor_position, i);
-                }
+            Event::Mouse(ButtonPressed(Button::Left)) => 'handler: {
+                let Some(off) = self.xy_to_offset(&layout, cursor_position) else { break 'handler; };
+                let Some(rowid) = self.offset_to_rowid(off) else { break 'handler; };
+                self.selection = Selection::single(rowid);
+                // FIXME: what if new images get added on screen while dragging mouse? maybe we
+                // should cancel selection?
+                state.selecting_from_offset = Some(off);
+                // println!("PRESS: {:?} off={}", cursor_position, off);
             }
-            Event::Mouse(CursorMoved { .. }) => {
-                if state.selecting {
-                    if let Some(i) = self.xy_to_offset(&layout, cursor_position) {
-                        self.selection.last = i;
-                    }
-                }
+            Event::Mouse(CursorMoved { .. }) => 'handler: {
+                let Some(initial_off) = state.selecting_from_offset else { break 'handler; };
+                // FIXME: what if new images get added on screen while dragging mouse? maybe we
+                // should cancel selection?
+                let Some(off) = self.xy_to_offset(&layout, cursor_position) else { break 'handler; };
+                let rowids = self.offset_range_to_rowids(initial_off..=off);
+                self.selection.ids = rowids;
                 // println!(" MOVE: {:?}", cursor_position);
                 // println!("bounds: {:?} pos: {:?}", layout.bounds(), layout.position());
             }
             Event::Mouse(ButtonReleased(Button::Left)) => {
-                state.selecting = false;
+                state.selecting_from_offset = None;
                 if let Some(on_select) = &self.on_select {
                     shell.publish(on_select(self.selection));
                 }
