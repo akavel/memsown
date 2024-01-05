@@ -108,7 +108,8 @@ pub fn upsert(
     Ok(())
 }
 
-pub fn visible_files(db: &Connection, oal: OffsetAndLimit) -> impl Iterator<Item = anyhow::Result<Rowid>> + '_ {
+// pub fn visible_files(db: &Connection, oal: OffsetAndLimit) -> impl Iterator<Item = anyhow::Result<Rowid>> + '_ {
+pub fn visible_files(db: &Connection, oal: OffsetAndLimit) -> Vec<Rowid> {
     let mut query = db
         .prepare_cached(
             r"
@@ -128,13 +129,13 @@ LIMIT ? OFFSET ?",
         )
         .unwrap();
     use anyhow::Context;
-    let iter = query.query_map(params![oal.limit, oal.offset], |row| {
+    query.query_map(params![oal.limit, oal.offset], |row| {
             row.get::<usize, Rowid>(0)
         })
         .unwrap()
-        .map(|res| res.with_context(|| "loading rowid for visible file"));
-        // .map(anyhow::Result::from);
-    iter
+        .map(|res| res.with_context(|| "loading rowid for visible file"))
+        .collect::<Result<Vec<_>>>()
+        .unwrap()
 }
 
 pub fn remove(db: &Connection, marker: &str, relative: &str) -> Result<()> {

@@ -123,11 +123,10 @@ impl<Message> Gallery<Message> {
         let _enter = prof_span.enter();
 
         let len = range.end() - range.start() + 1;
-        let oal = db::OffsetAndLimit::new(range.start().into(), len.into());
+        let oal = db::OffsetAndLimit::new((*range.start()).into(), len.into());
         // TODO: is it avoidable locking DB on every mouse move?
         let db = self.db.lock().unwrap();
-        let maybe_rowids: Result<Vec<_>> = db::visible_files(db, oal).collect();
-        maybe_rowids.unwrap()
+        db::visible_files(&db, oal)
     }
 
     fn offset_selected(&self, offset: u32) -> bool {
@@ -444,7 +443,7 @@ ORDER BY backend_tag ASC, path ASC",
                 // should cancel selection?
                 let Some(off) = self.offset_from_xy(&layout, cursor_position) else { break 'handler; };
                 let rowids = self.rowids_from_offsets(initial_off..=off);
-                self.selection.ids = rowids;
+                self.selection.rowids = rowids;
                 // println!(" MOVE: {:?}", cursor_position);
                 // println!("bounds: {:?} pos: {:?}", layout.bounds(), layout.position());
             }
