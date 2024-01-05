@@ -95,7 +95,7 @@ impl<Message> Gallery<Message> {
         ((layout.bounds().width - self.spacing) / (self.tile_w + self.spacing)) as u32
     }
 
-    fn xy_to_offset(&self, layout: &Layout, p: Point) -> Option<u32> {
+    fn offset_from_xy(&self, layout: &Layout, p: Point) -> Option<u32> {
         // Note: all calculations in "full" layout coordinates, not in a virtual viewport window.
 
         if p.x < 0.0 || p.y < 0.0 {
@@ -113,7 +113,21 @@ impl<Message> Gallery<Message> {
         Some(row * self.columns(layout) + col)
     }
 
-    fn offset_to_rowid(offset: u32) -> Option<db::Rowid> {
+    fn rowid_from_offset(&self, offset: u32) -> Option<db::Rowid> {
+        self.rowids_from_offsets(offset..=offset).first().map(|v| *v)
+    }
+
+    // FIXME: use i64, per Sqlite internals I think, instead of u32
+    fn rowids_from_offsets(&self, range: RangeInclusive<u32>) -> Vec<db::Rowid> {
+        let prof_span = span!(Level::TRACE, "gallery::rowids_from_offsets");
+        let _enter = prof_span.enter();
+
+        let len = range.end() - range.start() + 1;
+        let oal = db::OffsetAndLimit::new(range.start().into(), len.into());
+        // TODO: is it avoidable locking DB on every mouse move?
+        let db = self.db.lock().unwrap();
+        let maybe_rowids: Result<Vec<_>> = db::visible_files(db, oal).collect();
+        maybe_rowids.unwrap()
     }
 
     fn offset_selected(&self, offset: u32) -> bool {
@@ -192,7 +206,7 @@ where
 
         // Index of first thumbnail to draw in top-left corner
         let offset = self
-            .xy_to_offset(&layout, Point::new(0., viewport.y))
+            .offset_from_xy(&layout, Point::new(0., viewport.y))
             .unwrap_or(0);
         let limit = (2 + (viewport.height / (self.tile_h + self.spacing)) as u32) * columns;
 
@@ -332,7 +346,7 @@ LIMIT ? OFFSET ?",
 
         // Show locations of image file in a hovering tooltip at cursor position.
         // println!("cursor: {:?}", cursor);
-        if let Some(hovered_offset) = self.xy_to_offset(&layout, cursor) {
+        if let Some(hovered_offset) = self.offset_from_xy(&layout, cursor) {
             let span_draw_tooltip = span!(Level::TRACE, "draw/tooltip");
             let _guard_draw_tooltip = span_draw_tooltip.enter();
 
@@ -416,8 +430,8 @@ ORDER BY backend_tag ASC, path ASC",
         let state: &mut InternalState = tree.into();
         match event {
             Event::Mouse(ButtonPressed(Button::Left)) => 'handler: {
-                let Some(off) = self.xy_to_offset(&layout, cursor_position) else { break 'handler; };
-                let Some(rowid) = self.offset_to_rowid(off) else { break 'handler; };
+                let Some(off) = self.offset_from_xy(&layout, cursor_position) else { break 'handler; };
+                let Some(rowid) = self.rowid_from_offset(off) else { break 'handler; };
                 self.selection = Selection::single(rowid);
                 // FIXME: what if new images get added on screen while dragging mouse? maybe we
                 // should cancel selection?
@@ -428,8 +442,8 @@ ORDER BY backend_tag ASC, path ASC",
                 let Some(initial_off) = state.selecting_from_offset else { break 'handler; };
                 // FIXME: what if new images get added on screen while dragging mouse? maybe we
                 // should cancel selection?
-                let Some(off) = self.xy_to_offset(&layout, cursor_position) else { break 'handler; };
-                let rowids = self.offset_range_to_rowids(initial_off..=off);
+                let Some(off) = self.offset_from_xy(&layout, cursor_position) else { break 'handler; };
+                let rowids = self.rowids_from_offsets(initial_off..=off);
                 self.selection.ids = rowids;
                 // println!(" MOVE: {:?}", cursor_position);
                 // println!("bounds: {:?} pos: {:?}", layout.bounds(), layout.position());

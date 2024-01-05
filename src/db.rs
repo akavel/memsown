@@ -20,6 +20,12 @@ pub struct OffsetAndLimit {
     pub limit: i64, // FIXME: make sure right type
 }
 
+impl OffsetAndLimit {
+    pub fn new(offset: i64, limit: i64) -> Self {
+        Self { offset, limit }
+    }
+}
+
 pub fn open(path: impl AsRef<Path>) -> Result<SyncedDb> {
     let db = Connection::open(path.as_ref())?;
     init(&db)?;
