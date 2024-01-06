@@ -36,6 +36,7 @@ where
         }
     }
 
+    // TODO[LATER]: can we ensure Self cannot be ever used after?
     // fn iter(&mut self) -> impl Iterator<Item = Result<T>> {
     fn iter(&mut self) -> MappedRows<'_, F> {
         // FIXME[LATER]: change unwrap() to expect() or smth
