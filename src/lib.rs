@@ -1,46 +1,49 @@
 //! Module containing a generic iterator returning typed results from cached SQLite queries.
 
-use rusqlite::{Connection, MappedRows, Params, Result, Row};
+use rusqlite::{Connection, MappedRows, Result};
 use std::marker::PhantomData;
 
-struct TypedQuery<'conn, P, T> {
+pub type RowParser<T> = fn(&rusqlite::Row) -> Result<T>;
+
+struct TypedQuery<'conn, Params, Row> {
     stmt: rusqlite::CachedStatement<'conn>,
-    params_type: PhantomData<P>,
-    row_mapper: fn(&Row) -> Result<T>,
+    params_type: PhantomData<Params>,
+    row_parser: RowParser<Row>,
 }
 
-impl<'conn, T, P> TypedQuery<'conn, P, T> {
+impl<'conn, Params, Row> TypedQuery<'conn, Params, Row> {
     fn new(
         conn: &'conn Connection,
         sql: &str,
-        f: fn(&Row) -> Result<T>,
-    ) -> TypedQuery<'conn, P, T> {
+        row_parser: RowParser<Row>,
+    ) -> TypedQuery<'conn, Params, Row> {
         // FIXME[LATER]: change unwrap() to expect() or smth
         // FIXME[LATER]: pass unwrap to 1st next()
         let stmt = conn.prepare_cached(sql).unwrap();
         Self {
             stmt,
             params_type: PhantomData,
-            row_mapper: f,
+            row_parser,
         }
     }
 }
 
-impl<'conn, T, P> TypedQuery<'conn, P, T>
+impl<'conn, Params, Row> TypedQuery<'conn, Params, Row>
 where
-    P: Params,
+    Params: rusqlite::Params,
 {
-    // TODO: fn ... -> impl Iterator<Item = Result<T>> {
-    fn run(&mut self, params: P) -> MappedRows<'_, fn(&Row) -> Result<T>> {
+    // TODO: fn ... -> impl Iterator<Item = Result<Row>> {
+    fn run(&mut self, params: Params) -> MappedRows<'_, RowParser<Row>> {
         // FIXME[LATER]: change unwrap() to expect() or smth
         // FIXME[LATER]: pass unwrap to 1st next()
-        self.stmt.query_map(params, self.row_mapper).unwrap()
+        self.stmt.query_map(params, self.row_parser).unwrap()
     }
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
+    use rusqlite::Row;
 
     #[test]
     fn simple_use() {
