@@ -1,20 +1,37 @@
 //! Module containing a generic iterator returning typed results from cached SQLite queries.
 
-use rusqlite::{params, Connection};
+use rusqlite::{Params, Connection, Row, Result};
 
 struct Typed<Item> {
-    _tmp: Item,
+    _tmp: Option<Item>,
+}
+
+impl<Item> Typed<Item> {
+    fn new<T, P, F>(sql: &str, params: P, f: F) -> Self 
+    where 
+        P: Params,
+        F: FnMut(&Row) -> Result<T>
+        // F: FnMut(&Row<'_>) -> Result<T>
+        // F: FnMut(&Row<'stmt>) -> Result<T>
+    {
+        Self { _tmp: None }
+    }
 }
 
 impl<Item> Iterator for Typed<Item> {
     type Item = Item;
+
+    fn next(&mut self) -> Option<Item> {
+        // FIXME
+        None
+    }
 }
 
 
 #[cfg(test)]
 mod test {
     use super::*;
-    use rusqlite::Result;
+    use rusqlite::params;
 
     #[test]
     fn simple_use() {
