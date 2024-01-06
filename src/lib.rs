@@ -3,6 +3,7 @@
 use rusqlite::{params, Connection};
 
 struct Typed<Item> {
+    _tmp: Item,
 }
 
 impl<Item> Iterator for Typed<Item> {
@@ -22,8 +23,8 @@ mod test {
         let maybe_all = iter.collect::<Result<Vec<_>>>();
         let all = maybe_all.unwrap();
         assert_eq!(all, &[
-            ("hello", 1),
-            ("world", 2),
+            ("hello".to_string(), 1i64),
+            ("world".to_string(), 2i64),
         ]);
     }
 
