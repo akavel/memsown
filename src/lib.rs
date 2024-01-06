@@ -2,11 +2,13 @@
 
 use rusqlite::{Connection, Params, Result, Row};
 
-struct Typed<'stmt, F> {
-    rows: rusqlite::MappedRows<'stmt, F>,
+// struct Typed<'stmt, F> {
+struct Typed<'conn, F> {
+    stmt: rusqlite::CachedStatement<'conn>,
+    rows: rusqlite::MappedRows<'conn, F>,
 }
 
-impl<T, F> Typed<F>
+impl<T, F> Typed<'_, F>
 where
     // F: FnMut(&Row<'_>) -> Result<T>
     // F: FnMut(&Row<'stmt>) -> Result<T>
@@ -18,15 +20,15 @@ where
     {
         // FIXME[LATER]: change unwrap() to expect() or smth
         // FIXME[LATER]: pass unwrap to 1st next()
-        let stmt = conn.prepare_cached(sql).unwrap();
+        let mut stmt = conn.prepare_cached(sql).unwrap();
         // FIXME[LATER]: change unwrap() to expect() or smth
         // FIXME[LATER]: pass unwrap to 1st next()
         let rows = stmt.query_map(params, f).unwrap();
-        Self { rows }
+        Self { stmt, rows }
     }
 }
 
-impl<T, F> Iterator for Typed<F>
+impl<T, F> Iterator for Typed<'_, F>
 where
     F: FnMut(&Row) -> Result<T>,
 {
