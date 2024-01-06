@@ -3,24 +3,14 @@
 use rusqlite::{Connection, MappedRows, Params, Result, Row};
 use std::marker::PhantomData;
 
-// TODO[LATER]: some other way or trait more canonical?
-trait Iterable {
-    type Item;
-    type Iter: Iterator<Item = Self::Item>;
-
-    fn iter(&mut self) -> Self::Iter;
-}
-
 struct TypedQuery<'conn, P, F> {
     stmt: rusqlite::CachedStatement<'conn>,
     params_type: PhantomData<P>,
-    // params: Option<P>,
     row_mapper: Option<F>,
 }
 
 impl<'conn, T, P, F> TypedQuery<'conn, P, F>
 where
-    // P: Params,
     F: FnMut(&Row) -> Result<T>,
 {
     fn new(conn: &'conn Connection, sql: &str, f: F) -> TypedQuery<'conn, P, F> {
@@ -30,7 +20,6 @@ where
         Self {
             stmt,
             params_type: PhantomData,
-            // params: Some(params),
             row_mapper: Some(f),
         }
     }
@@ -42,7 +31,7 @@ where
     F: FnMut(&Row) -> Result<T>,
 {
     // TODO[LATER]: can we ensure Self cannot be ever used after?
-    // fn iter(&mut self) -> impl Iterator<Item = Result<T>> {
+    // TODO: fn ... -> impl Iterator<Item = Result<T>> {
     fn run(&mut self, params: P) -> MappedRows<'_, F> {
         // FIXME[LATER]: change unwrap() to expect() or smth
         // FIXME[LATER]: pass unwrap to 1st next()
@@ -51,12 +40,6 @@ where
             .unwrap()
     }
 }
-
-/*
-impl<'conn, P, F> Iterable for TypedQuery
-{
-}
-*/
 
 #[cfg(test)]
 mod test {
@@ -77,7 +60,7 @@ mod test {
 
     // fn simple_query(conn: &Connection) -> impl Iterable<Item = Result<(String, i64)>> {
     fn simple_query<'conn>(
-        conn: &'conn Connection, //exclude: &str, limit: i64,
+        conn: &'conn Connection,
     ) -> TypedQuery<'conn, (&str, i64), impl FnMut(&Row<'_>) -> Result<(String, i64)>> {
         TypedQuery::new(
             conn,
@@ -85,8 +68,6 @@ mod test {
                 WHERE foo != ?
                 ORDER BY bar
                 LIMIT ?",
-            // PhantomData,
-            // params![exclude, limit],
             |row: &Row| {
                 let foo: String = row.get(0)?;
                 let bar: i64 = row.get(1)?;
