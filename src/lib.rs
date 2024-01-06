@@ -43,11 +43,11 @@ where
 {
     // TODO[LATER]: can we ensure Self cannot be ever used after?
     // fn iter(&mut self) -> impl Iterator<Item = Result<T>> {
-    fn iter(&mut self) -> MappedRows<'_, F> {
+    fn run(&mut self, params: P) -> MappedRows<'_, F> {
         // FIXME[LATER]: change unwrap() to expect() or smth
         // FIXME[LATER]: pass unwrap to 1st next()
         self.stmt
-            .query_map(self.params.take().unwrap(), self.row_mapper.take().unwrap())
+            .query_map(params, self.row_mapper.take().unwrap())
             .unwrap()
     }
 }
@@ -78,7 +78,7 @@ mod test {
     // fn simple_query(conn: &Connection) -> impl Iterable<Item = Result<(String, i64)>> {
     fn simple_query<'conn>(
         conn: &'conn Connection, //exclude: &str, limit: i64,
-    ) -> TypedQuery<'conn, PhantomData<(&str, i64)>, impl FnMut(&Row<'_>) -> Result<(String, i64)>> {
+    ) -> TypedQuery<'conn, (&str, i64), impl FnMut(&Row<'_>) -> Result<(String, i64)>> {
         TypedQuery::new(
             conn,
             "SELECT foo, bar FROM foobar
