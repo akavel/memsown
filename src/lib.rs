@@ -2,26 +2,29 @@
 
 use rusqlite::{Params, Connection, Row, Result};
 
-struct Typed<Item> {
-    _tmp: Option<Item>,
+struct Typed<F> {
+    f: F,
 }
 
-impl<Item> Typed<Item> {
-    fn new<T, P, F>(conn: &Connection, sql: &str, params: P, f: F) -> Self 
+impl<T, F> Typed<F> 
+where 
+    F: FnMut(&Row) -> Result<T>
+    // F: FnMut(&Row<'_>) -> Result<T>
+    // F: FnMut(&Row<'stmt>) -> Result<T>
+{
+    fn new<P>(conn: &Connection, sql: &str, params: P, f: F) -> Self 
     where 
         P: Params,
-        F: FnMut(&Row) -> Result<T>
-        // F: FnMut(&Row<'_>) -> Result<T>
-        // F: FnMut(&Row<'stmt>) -> Result<T>
     {
-        Self { _tmp: None }
+        Self { f }
     }
 }
 
-impl<Item> Iterator for Typed<Item> {
-    type Item = Item;
+impl<T, F> Iterator for Typed<F>
+where F: FnMut(&Row) -> Result<T> {
+    type Item = Result<T>;
 
-    fn next(&mut self) -> Option<Item> {
+    fn next(&mut self) -> Option<Self::Item> {
         // FIXME
         None
     }
