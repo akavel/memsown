@@ -2,33 +2,48 @@
 
 use rusqlite::{Connection, Params, Result, Row};
 
-// struct Typed<'stmt, F> {
-struct Typed<'conn, F> {
-    stmt: rusqlite::CachedStatement<'conn>,
-    rows: rusqlite::MappedRows<'conn, F>,
+// TODO[LATER]: some other way or trait more canonical?
+trait Iterable {
+    type Item;
+    type Iter: Iterator<Item = Self::Item>;
+
+    fn iter(&mut self) -> Self::Iter;
 }
 
-impl<T, F> Typed<'_, F>
+/*
+// struct Typed<'stmt, F> {
+struct TypedQuery<'conn, P, F> {
+    stmt: rusqlite::CachedStatement<'conn>,
+    params: P,
+    row_mapper: F,
+    // rows: rusqlite::MappedRows<'conn, F>,
+}
+
+impl<T, P, F> TypedQuery<'_, F>
 where
     // F: FnMut(&Row<'_>) -> Result<T>
     // F: FnMut(&Row<'stmt>) -> Result<T>
+    P: Params,
     F: FnMut(&Row) -> Result<T>,
 {
-    fn new<P>(conn: &Connection, sql: &str, params: P, f: F) -> Self
-    where
-        P: Params,
+    fn new(conn: &Connection, sql: &str, params: P, f: F) -> Self
     {
         // FIXME[LATER]: change unwrap() to expect() or smth
         // FIXME[LATER]: pass unwrap to 1st next()
-        let mut stmt = conn.prepare_cached(sql).unwrap();
+        let stmt = conn.prepare_cached(sql).unwrap();
+        Self { stmt, params, row_mapper: f }
+        /*
         // FIXME[LATER]: change unwrap() to expect() or smth
         // FIXME[LATER]: pass unwrap to 1st next()
         let rows = stmt.query_map(params, f).unwrap();
         Self { stmt, rows }
+        */
     }
 }
+*/
 
-impl<T, F> Iterator for Typed<'_, F>
+/*
+impl<T, F> Iterator for TypedQuery<'_, F>
 where
     F: FnMut(&Row) -> Result<T>,
 {
@@ -39,12 +54,14 @@ where
         None
     }
 }
+*/
 
 #[cfg(test)]
 mod test {
     use super::*;
     use rusqlite::params;
 
+/*
     #[test]
     fn simple_use() {
         let conn = new_db();
@@ -58,7 +75,7 @@ mod test {
     }
 
     fn simple_iter(conn: &Connection) -> impl Iterator<Item = Result<(String, i64)>> {
-        Typed::new(
+        TypedQuery::new(
             conn,
             "SELECT foo, bar FROM foobar
                 WHERE foo != ?
@@ -72,6 +89,7 @@ mod test {
             },
         )
     }
+*/
 
     fn new_db() -> rusqlite::Connection {
         let db = rusqlite::Connection::open_in_memory().unwrap();
