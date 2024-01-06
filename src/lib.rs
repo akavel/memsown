@@ -2,8 +2,8 @@
 
 use rusqlite::{Connection, Params, Result, Row};
 
-struct Typed<F> {
-    f: F,
+struct Typed<'stmt, F> {
+    rows: rusqlite::MappedRows<'stmt, F>,
 }
 
 impl<T, F> Typed<F>
@@ -16,7 +16,13 @@ where
     where
         P: Params,
     {
-        Self { f }
+        // FIXME[LATER]: change unwrap() to expect() or smth
+        // FIXME[LATER]: pass unwrap to 1st next()
+        let stmt = conn.prepare_cached(sql).unwrap();
+        // FIXME[LATER]: change unwrap() to expect() or smth
+        // FIXME[LATER]: pass unwrap to 1st next()
+        let rows = stmt.query_map(params, f).unwrap();
+        Self { rows }
     }
 }
 
