@@ -1,6 +1,7 @@
 //! Module containing a generic iterator returning typed results from cached SQLite queries.
 
 use rusqlite::{Connection, MappedRows, Params, Result, Row};
+use std::marker::PhantomData;
 
 // TODO[LATER]: some other way or trait more canonical?
 trait Iterable {
@@ -12,8 +13,27 @@ trait Iterable {
 
 struct TypedQuery<'conn, P, F> {
     stmt: rusqlite::CachedStatement<'conn>,
-    params: Option<P>,
+    params_type: PhantomData<P>,
+    // params: Option<P>,
     row_mapper: Option<F>,
+}
+
+impl<'conn, T, P, F> TypedQuery<'conn, P, F>
+where
+    // P: Params,
+    F: FnMut(&Row) -> Result<T>,
+{
+    fn new(conn: &'conn Connection, sql: &str, f: F) -> TypedQuery<'conn, P, F> {
+        // FIXME[LATER]: change unwrap() to expect() or smth
+        // FIXME[LATER]: pass unwrap to 1st next()
+        let stmt = conn.prepare_cached(sql).unwrap();
+        Self {
+            stmt,
+            params_type: PhantomData,
+            // params: Some(params),
+            row_mapper: Some(f),
+        }
+    }
 }
 
 impl<'conn, T, P, F> TypedQuery<'conn, P, F>
@@ -21,17 +41,6 @@ where
     P: Params,
     F: FnMut(&Row) -> Result<T>,
 {
-    fn new(conn: &'conn Connection, sql: &str, params: P, f: F) -> TypedQuery<'conn, P, F> {
-        // FIXME[LATER]: change unwrap() to expect() or smth
-        // FIXME[LATER]: pass unwrap to 1st next()
-        let stmt = conn.prepare_cached(sql).unwrap();
-        Self {
-            stmt,
-            params: Some(params),
-            row_mapper: Some(f),
-        }
-    }
-
     // TODO[LATER]: can we ensure Self cannot be ever used after?
     // fn iter(&mut self) -> impl Iterator<Item = Result<T>> {
     fn iter(&mut self) -> MappedRows<'_, F> {
@@ -57,8 +66,8 @@ mod test {
     #[test]
     fn simple_use() {
         let conn = new_db();
-        let mut query = simple_query(&conn, "bleh-dummy", 100);
-        let maybe_all = query.iter().collect::<Result<Vec<_>>>();
+        let mut query = simple_query(&conn);
+        let maybe_all = query.run(("bleh-dummy", 100)).collect::<Result<Vec<_>>>();
         let all = maybe_all.unwrap();
         assert_eq!(
             all,
@@ -68,15 +77,16 @@ mod test {
 
     // fn simple_query(conn: &Connection) -> impl Iterable<Item = Result<(String, i64)>> {
     fn simple_query<'conn>(
-        conn: &'conn Connection, exclude: &str, limit: i64,
-    ) -> TypedQuery<'conn, impl Params, impl FnMut(&Row<'_>) -> Result<(String, i64)>> {
+        conn: &'conn Connection, //exclude: &str, limit: i64,
+    ) -> TypedQuery<'conn, PhantomData<(&str, i64)>, impl FnMut(&Row<'_>) -> Result<(String, i64)>> {
         TypedQuery::new(
             conn,
             "SELECT foo, bar FROM foobar
                 WHERE foo != ?
                 ORDER BY bar
                 LIMIT ?",
-            params![exclude, limit],
+            // PhantomData,
+            // params![exclude, limit],
             |row: &Row| {
                 let foo: String = row.get(0)?;
                 let bar: i64 = row.get(1)?;
