@@ -11,7 +11,6 @@ use iced_native::{layout, Clipboard, Layout, Length, Point, Shell, Size};
 use iced_pure::widget::tree::{self, Tree};
 use image::ImageDecoder;
 use itertools::Itertools;
-use rusqlite::params;
 use tracing::{Level, span};
 
 use crate::db;
@@ -129,9 +128,9 @@ impl<Message> Gallery<Message> {
         db::visible_files_rowids(&db, oal)
     }
 
-    fn offset_selected(&self, offset: u32) -> bool {
-        self.selection.range().contains(&offset)
-    }
+    // fn offset_selected(&self, offset: u32) -> bool {
+    //     self.selection.range().contains(&offset)
+    // }
 }
 
 impl<Message, Renderer> Widget<Message, Renderer> for Gallery<Message>
@@ -218,35 +217,8 @@ where
         // TODO[LATER]: think whether to remove .unwrap()
         let span_filequery_init = span!(Level::TRACE, "draw/filequery_init");
         let guard_filequery_init = span_filequery_init.enter();
-        let mut query = db
-            .prepare_cached(
-                r"
-SELECT hash, date, thumbnail
-FROM file
-WHERE file.rowid NOT IN (
-  SELECT file_id AS hidden_file
-  FROM file_tag
-  WHERE tag_id IN (
-    SELECT ROWID
-    FROM tag
-    WHERE hidden IS TRUE
-  )
-)
-ORDER BY date
-LIMIT ? OFFSET ?",
-            )
-            .unwrap();
-        let file_iter = query
-            .query_map(params!(limit, offset), |row| {
-                let span_filerow = span!(Level::TRACE, "draw/filerow");
-                let _guard_filerow = span_filerow.enter();
-                Ok(crate::model::FileInfo {
-                    hash: row.get_unwrap(0),
-                    date: row.get_unwrap(1),
-                    thumb: row.get_unwrap(2),
-                })
-            })
-            .unwrap();
+        let mut query = crate::db::visible_files_in_limit_and_offset(&db);
+        let file_iter = query.run((limit as i64, offset as i64)).map(|v| v.unwrap());
         drop(guard_filequery_init);
 
         // println!("{:?} {:?}", layout.bounds(), &viewport);
@@ -256,12 +228,15 @@ LIMIT ? OFFSET ?",
         let mut last_date = String::new();
         let mut x = self.spacing;
         let mut y = self.spacing + (offset / columns) as f32 * (self.tile_h + self.spacing);
-        for (i, row) in file_iter.enumerate() {
+        // for (rowid, file) in file_iter.enumerate() {
+        for (rowid, file) in file_iter {
             let span_fileiter = span!(Level::TRACE, "draw/fileiter");
             let _guard_fileiter = span_fileiter.enter();
 
             // Mark tile as selected when appropriate.
-            if self.offset_selected(offset + i as u32) {
+            // FIXME: O(n)!!!
+            if self.selection.rowids.contains(&rowid) {
+            // if self.offset_selected(offset + i as u32) {
                 renderer.fill_quad(
                     Quad {
                         bounds: Rectangle {
@@ -277,8 +252,6 @@ LIMIT ? OFFSET ?",
                     Color::from_rgb(0.5, 0.5, 1.),
                 );
             }
-
-            let file = row.unwrap();
 
             // Extract dimensions of thumbnail
             let span_jpegdec = span!(Level::TRACE, "draw/jpegdec");
