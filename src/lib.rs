@@ -57,7 +57,7 @@ mod test {
     #[test]
     fn simple_use() {
         let conn = new_db();
-        let mut query = simple_query(&conn);
+        let mut query = simple_query(&conn, "bleh-dummy", 100);
         let maybe_all = query.iter().collect::<Result<Vec<_>>>();
         let all = maybe_all.unwrap();
         assert_eq!(
@@ -68,7 +68,7 @@ mod test {
 
     // fn simple_query(conn: &Connection) -> impl Iterable<Item = Result<(String, i64)>> {
     fn simple_query<'conn>(
-        conn: &'conn Connection,
+        conn: &'conn Connection, exclude: &str, limit: i64,
     ) -> TypedQuery<'conn, impl Params, impl FnMut(&Row<'_>) -> Result<(String, i64)>> {
         TypedQuery::new(
             conn,
@@ -76,7 +76,7 @@ mod test {
                 WHERE foo != ?
                 ORDER BY bar
                 LIMIT ?",
-            params!["bleh-dummy", 100],
+            params![exclude, limit],
             |row: &Row| {
                 let foo: String = row.get(0)?;
                 let bar: i64 = row.get(1)?;
