@@ -84,7 +84,7 @@ impl Application for Gui {
         // FIXME: Milestone: show some info about where img is present
 
         let gallery = Gallery::new(Arc::clone(&self.db))
-            .with_selection(self.gallery_selection)
+            .with_selection(self.gallery_selection.clone())
             .on_select(Message::GallerySelection);
         let tags = self.tags.view().map(Message::OfTags);
         row()
@@ -104,7 +104,7 @@ impl Gui {
 
         let db = self.db.lock().unwrap();
 
-        let query = crate::db::tags_for_file_ids(&db);
+        let mut query = crate::db::tags_for_file_ids(&db);
         let file_rowids = self.gallery_selection.rowids.iter().copied().map(SqlValue::from).collect::<Vec<_>>();
         let limit = file_rowids.len() as u32;
         let file_rowids = std::rc::Rc::new(file_rowids);

@@ -423,7 +423,7 @@ ORDER BY backend_tag ASC, path ASC",
             Event::Mouse(ButtonReleased(Button::Left)) => {
                 state.selecting_from_offset = None;
                 if let Some(on_select) = &self.on_select {
-                    shell.publish(on_select(self.selection));
+                    shell.publish(on_select(self.selection.clone()));
                 }
                 // println!("RLASE: {:?}", cursor_position);
             }
