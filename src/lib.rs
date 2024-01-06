@@ -1,6 +1,6 @@
 //! Module containing a generic iterator returning typed results from cached SQLite queries.
 
-use rusqlite::{Connection, Params, Result, Row};
+use rusqlite::{Connection, Params, Result, Row, MappedRows};
 
 // TODO[LATER]: some other way or trait more canonical?
 trait Iterable {
@@ -13,8 +13,8 @@ trait Iterable {
 // struct Typed<'stmt, F> {
 struct TypedQuery<'conn, P, F> {
     stmt: rusqlite::CachedStatement<'conn>,
-    params: P,
-    row_mapper: F,
+    params: Option<P>,
+    row_mapper: Option<F>,
     // rows: rusqlite::MappedRows<'conn, F>,
 }
 
@@ -31,8 +31,8 @@ where
         let stmt = conn.prepare_cached(sql).unwrap();
         Self {
             stmt,
-            params,
-            row_mapper: f,
+            params: Some(params),
+            row_mapper: Some(f),
         }
         /*
         // FIXME[LATER]: change unwrap() to expect() or smth
@@ -40,6 +40,13 @@ where
         let rows = stmt.query_map(params, f).unwrap();
         Self { stmt, rows }
         */
+    }
+
+    // fn iter(&mut self) -> impl Iterator<Item = Result<T>> {
+    fn iter(&mut self) -> MappedRows<'_, F> {
+        // FIXME[LATER]: change unwrap() to expect() or smth
+        // FIXME[LATER]: pass unwrap to 1st next()
+        self.stmt.query_map(self.params.take().unwrap(), self.row_mapper.take().unwrap()).unwrap()
     }
 }
 
@@ -68,22 +75,20 @@ mod test {
     use super::*;
     use rusqlite::params;
 
-    /*
-        #[test]
-        fn simple_use() {
-            let conn = new_db();
-            let iter = simple_iter(&conn);
-            let maybe_all = iter.collect::<Result<Vec<_>>>();
-            let all = maybe_all.unwrap();
-            assert_eq!(
-                all,
-                &[("hello".to_string(), 1i64), ("world".to_string(), 2i64),]
-            );
-        }
-    */
+    #[test]
+    fn simple_use() {
+        let conn = new_db();
+        let mut query = simple_query(&conn);
+        let maybe_all = query.iter().collect::<Result<Vec<_>>>();
+        let all = maybe_all.unwrap();
+        assert_eq!(
+            all,
+            &[("hello".to_string(), 1i64), ("world".to_string(), 2i64),]
+        );
+    }
 
-    // fn simple_iter(conn: &Connection) -> impl Iterator<Item = Result<(String, i64)>> {
-    fn simple_iter<'conn>(
+    // fn simple_query(conn: &Connection) -> impl Iterable<Item = Result<(String, i64)>> {
+    fn simple_query<'conn>(
         conn: &'conn Connection,
     ) -> TypedQuery<'conn, impl Params, impl FnMut(&Row<'_>) -> Result<(String, i64)>> {
         TypedQuery::new(
