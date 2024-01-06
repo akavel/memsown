@@ -25,12 +25,15 @@ where
     P: Params,
     F: FnMut(&Row) -> Result<T>,
 {
-    fn new(conn: &'conn Connection, sql: &str, params: P, f: F) -> TypedQuery<'conn, P, F>
-    {
+    fn new(conn: &'conn Connection, sql: &str, params: P, f: F) -> TypedQuery<'conn, P, F> {
         // FIXME[LATER]: change unwrap() to expect() or smth
         // FIXME[LATER]: pass unwrap to 1st next()
         let stmt = conn.prepare_cached(sql).unwrap();
-        Self { stmt, params, row_mapper: f }
+        Self {
+            stmt,
+            params,
+            row_mapper: f,
+        }
         /*
         // FIXME[LATER]: change unwrap() to expect() or smth
         // FIXME[LATER]: pass unwrap to 1st next()
@@ -65,22 +68,24 @@ mod test {
     use super::*;
     use rusqlite::params;
 
-/*
-    #[test]
-    fn simple_use() {
-        let conn = new_db();
-        let iter = simple_iter(&conn);
-        let maybe_all = iter.collect::<Result<Vec<_>>>();
-        let all = maybe_all.unwrap();
-        assert_eq!(
-            all,
-            &[("hello".to_string(), 1i64), ("world".to_string(), 2i64),]
-        );
-    }
-*/
+    /*
+        #[test]
+        fn simple_use() {
+            let conn = new_db();
+            let iter = simple_iter(&conn);
+            let maybe_all = iter.collect::<Result<Vec<_>>>();
+            let all = maybe_all.unwrap();
+            assert_eq!(
+                all,
+                &[("hello".to_string(), 1i64), ("world".to_string(), 2i64),]
+            );
+        }
+    */
 
     // fn simple_iter(conn: &Connection) -> impl Iterator<Item = Result<(String, i64)>> {
-    fn simple_iter<'conn>(conn: &'conn Connection) -> TypedQuery<'conn, impl Params, impl FnMut(&Row<'_>)->Result<(String,i64)>> {
+    fn simple_iter<'conn>(
+        conn: &'conn Connection,
+    ) -> TypedQuery<'conn, impl Params, impl FnMut(&Row<'_>) -> Result<(String, i64)>> {
         TypedQuery::new(
             conn,
             "SELECT foo, bar FROM foobar
