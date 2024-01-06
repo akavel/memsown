@@ -126,7 +126,7 @@ impl<Message> Gallery<Message> {
         let oal = db::OffsetAndLimit::new((*range.start()).into(), len.into());
         // TODO: is it avoidable locking DB on every mouse move?
         let db = self.db.lock().unwrap();
-        db::visible_files(&db, oal)
+        db::visible_files_rowids(&db, oal)
     }
 
     fn offset_selected(&self, offset: u32) -> bool {

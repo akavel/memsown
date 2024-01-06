@@ -134,7 +134,13 @@ GROUP BY tag.rowid";
 }
 
 // pub fn visible_files(db: &Connection, oal: OffsetAndLimit) -> impl Iterator<Item = anyhow::Result<Rowid>> + '_ {
-pub fn visible_files(db: &Connection, oal: OffsetAndLimit) -> Vec<Rowid> {
+pub fn visible_files_rowids(db: &Connection, oal: OffsetAndLimit) -> Vec<Rowid> {
+    let mut query = visible_files_in_limit_and_offset(&db);
+    query.run((oal.limit, oal.offset))
+        .map(|v| v.unwrap())
+        .map(|(rowid, _)| rowid)
+        .collect()
+/*
     let mut query = db
         .prepare_cached(
             r"
@@ -161,6 +167,35 @@ LIMIT ? OFFSET ?",
         .map(|res| res.with_context(|| "loading rowid for visible file"))
         .collect::<Result<Vec<_>>>()
         .unwrap()
+*/
+}
+
+pub fn visible_files_in_limit_and_offset<'cnx>(db: &'cnx Connection) ->
+    TypedQuery<'cnx, (i64, i64), (i64, crate::model::FileInfo)>
+{
+    let sql = r"
+SELECT rowid, hash, date, thumbnail
+FROM file
+WHERE rowid NOT IN (
+  SELECT file_id AS hidden_file
+  FROM file_tag
+  WHERE tag_id IN (
+    SELECT ROWID
+    FROM tag
+    WHERE hidden IS TRUE
+  )
+)
+ORDER BY date
+LIMIT ? OFFSET ?";
+    TypedQuery::new(db, sql, |row| {
+        let rowid = row.get_unwrap(0);
+        let f = crate::model::FileInfo {
+            hash: row.get_unwrap(1),
+            date: row.get_unwrap(2),
+            thumb: row.get_unwrap(3),
+        };
+        Ok((rowid, f))
+    })
 }
 
 pub fn remove(db: &Connection, marker: &str, relative: &str) -> Result<()> {
