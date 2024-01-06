@@ -3,40 +3,37 @@
 use rusqlite::{Connection, MappedRows, Params, Result, Row};
 use std::marker::PhantomData;
 
-struct TypedQuery<'conn, P, F> {
+struct TypedQuery<'conn, P, T> {
     stmt: rusqlite::CachedStatement<'conn>,
     params_type: PhantomData<P>,
-    row_mapper: Option<F>,
+    row_mapper: fn(&Row) -> Result<T>,
 }
 
-impl<'conn, T, P, F> TypedQuery<'conn, P, F>
-where
-    F: FnMut(&Row) -> Result<T>,
+impl<'conn, T, P> TypedQuery<'conn, P, T>
 {
-    fn new(conn: &'conn Connection, sql: &str, f: F) -> TypedQuery<'conn, P, F> {
+    fn new(conn: &'conn Connection, sql: &str, f: fn(&Row)->Result<T>) -> TypedQuery<'conn, P, T> {
         // FIXME[LATER]: change unwrap() to expect() or smth
         // FIXME[LATER]: pass unwrap to 1st next()
         let stmt = conn.prepare_cached(sql).unwrap();
         Self {
             stmt,
             params_type: PhantomData,
-            row_mapper: Some(f),
+            row_mapper: f,
         }
     }
 }
 
-impl<'conn, T, P, F> TypedQuery<'conn, P, F>
+impl<'conn, T, P> TypedQuery<'conn, P, T>
 where
     P: Params,
-    F: FnMut(&Row) -> Result<T>,
 {
     // TODO[LATER]: can we ensure Self cannot be ever used after?
     // TODO: fn ... -> impl Iterator<Item = Result<T>> {
-    fn run(&mut self, params: P) -> MappedRows<'_, F> {
+    fn run(&mut self, params: P) -> MappedRows<'_, fn(&Row)->Result<T>> {
         // FIXME[LATER]: change unwrap() to expect() or smth
         // FIXME[LATER]: pass unwrap to 1st next()
         self.stmt
-            .query_map(params, self.row_mapper.take().unwrap())
+            .query_map(params, self.row_mapper)
             .unwrap()
     }
 }
@@ -61,7 +58,7 @@ mod test {
     // fn simple_query(conn: &Connection) -> impl Iterable<Item = Result<(String, i64)>> {
     fn simple_query<'conn>(
         conn: &'conn Connection,
-    ) -> TypedQuery<'conn, (&str, i64), impl FnMut(&Row<'_>) -> Result<(String, i64)>> {
+    ) -> TypedQuery<'conn, (&str, i64), (String, i64)> {
         TypedQuery::new(
             conn,
             "SELECT foo, bar FROM foobar
