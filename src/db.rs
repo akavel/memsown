@@ -113,6 +113,26 @@ pub fn upsert(
     Ok(())
 }
 
+pub fn tags_for_file_ids<'cnx>(db: &'cnx Connection) ->
+    TypedQuery<'cnx, (std::rc::Rc<Vec<SqlValue>>,), (String, bool, u32)>
+{
+    let sql = r"
+SELECT tag.name, tag.hidden, count(ttt)
+FROM tag LEFT JOIN (
+    SELECT tag_id AS ttt
+    FROM file_tag
+    WHERE file_id IN rarray(?)
+) ON tag.rowid = ttt
+GROUP BY tag.rowid";
+    TypedQuery::new(db, sql, |row| {
+        let name: String = row.get_unwrap(0);
+        let hidden: bool = row.get_unwrap(1);
+        // FIXME[LATER]: u32 or maybe i64 ?
+        let count: u32 = row.get_unwrap(2);
+        Ok((name, hidden, count))
+    })
+}
+
 // pub fn visible_files(db: &Connection, oal: OffsetAndLimit) -> impl Iterator<Item = anyhow::Result<Rowid>> + '_ {
 pub fn visible_files(db: &Connection, oal: OffsetAndLimit) -> Vec<Rowid> {
     let mut query = db
