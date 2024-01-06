@@ -7,7 +7,7 @@ struct Typed<Item> {
 }
 
 impl<Item> Typed<Item> {
-    fn new<T, P, F>(sql: &str, params: P, f: F) -> Self 
+    fn new<T, P, F>(conn: &Connection, sql: &str, params: P, f: F) -> Self 
     where 
         P: Params,
         F: FnMut(&Row) -> Result<T>
@@ -47,6 +47,7 @@ mod test {
 
     fn simple_iter(conn: &Connection) -> impl Iterator<Item = Result<(String, i64)>> {
         Typed::new(
+            conn,
             "SELECT foo, bar FROM foobar
                 WHERE foo != ?
                 ORDER BY bar
