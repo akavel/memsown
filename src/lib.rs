@@ -1,6 +1,6 @@
 //! Module containing a generic iterator returning typed results from cached SQLite queries.
 
-use rusqlite::{Connection, Params, Result, Row, MappedRows};
+use rusqlite::{Connection, MappedRows, Params, Result, Row};
 
 // TODO[LATER]: some other way or trait more canonical?
 trait Iterable {
@@ -34,39 +34,21 @@ where
             params: Some(params),
             row_mapper: Some(f),
         }
-        /*
-        // FIXME[LATER]: change unwrap() to expect() or smth
-        // FIXME[LATER]: pass unwrap to 1st next()
-        let rows = stmt.query_map(params, f).unwrap();
-        Self { stmt, rows }
-        */
     }
 
     // fn iter(&mut self) -> impl Iterator<Item = Result<T>> {
     fn iter(&mut self) -> MappedRows<'_, F> {
         // FIXME[LATER]: change unwrap() to expect() or smth
         // FIXME[LATER]: pass unwrap to 1st next()
-        self.stmt.query_map(self.params.take().unwrap(), self.row_mapper.take().unwrap()).unwrap()
+        self.stmt
+            .query_map(self.params.take().unwrap(), self.row_mapper.take().unwrap())
+            .unwrap()
     }
 }
 
 /*
 impl<'conn, P, F> Iterable for TypedQuery
 {
-}
-*/
-
-/*
-impl<T, F> Iterator for TypedQuery<'_, F>
-where
-    F: FnMut(&Row) -> Result<T>,
-{
-    type Item = Result<T>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        // FIXME
-        None
-    }
 }
 */
 
