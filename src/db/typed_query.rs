@@ -5,14 +5,14 @@ use std::marker::PhantomData;
 
 pub type RowParser<T> = fn(&rusqlite::Row) -> Result<T>;
 
-struct TypedQuery<'conn, Params, Row> {
+pub struct TypedQuery<'conn, Params, Row> {
     stmt: rusqlite::CachedStatement<'conn>,
     params_type: PhantomData<Params>,
     row_parser: RowParser<Row>,
 }
 
 impl<'conn, Params, Row> TypedQuery<'conn, Params, Row> {
-    fn new(
+    pub fn new(
         conn: &'conn Connection,
         sql: &str,
         row_parser: RowParser<Row>,
@@ -33,7 +33,7 @@ where
     Params: rusqlite::Params,
 {
     // TODO: fn ... -> impl Iterator<Item = Result<Row>> {
-    fn run(&mut self, params: Params) -> MappedRows<'_, RowParser<Row>> {
+    pub fn run(&mut self, params: Params) -> MappedRows<'_, RowParser<Row>> {
         // FIXME[LATER]: change unwrap() to expect() or smth
         // FIXME[LATER]: pass unwrap to 1st next()
         self.stmt.query_map(params, self.row_parser).unwrap()

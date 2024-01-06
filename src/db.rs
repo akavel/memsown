@@ -5,6 +5,11 @@ use rusqlite::{params, Connection, Error::QueryReturnedNoRows};
 
 use crate::interlude::*;
 
+
+mod typed_query;
+pub use typed_query::*;
+
+
 // TODO[LATER]: use Arc<RwLock<T>> instead of Arc<Mutex<T>>
 pub type SyncedDb = Arc<Mutex<Connection>>;
 
