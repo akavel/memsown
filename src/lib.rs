@@ -9,9 +9,12 @@ struct TypedQuery<'conn, P, T> {
     row_mapper: fn(&Row) -> Result<T>,
 }
 
-impl<'conn, T, P> TypedQuery<'conn, P, T>
-{
-    fn new(conn: &'conn Connection, sql: &str, f: fn(&Row)->Result<T>) -> TypedQuery<'conn, P, T> {
+impl<'conn, T, P> TypedQuery<'conn, P, T> {
+    fn new(
+        conn: &'conn Connection,
+        sql: &str,
+        f: fn(&Row) -> Result<T>,
+    ) -> TypedQuery<'conn, P, T> {
         // FIXME[LATER]: change unwrap() to expect() or smth
         // FIXME[LATER]: pass unwrap to 1st next()
         let stmt = conn.prepare_cached(sql).unwrap();
@@ -27,21 +30,17 @@ impl<'conn, T, P> TypedQuery<'conn, P, T>
 where
     P: Params,
 {
-    // TODO[LATER]: can we ensure Self cannot be ever used after?
     // TODO: fn ... -> impl Iterator<Item = Result<T>> {
-    fn run(&mut self, params: P) -> MappedRows<'_, fn(&Row)->Result<T>> {
+    fn run(&mut self, params: P) -> MappedRows<'_, fn(&Row) -> Result<T>> {
         // FIXME[LATER]: change unwrap() to expect() or smth
         // FIXME[LATER]: pass unwrap to 1st next()
-        self.stmt
-            .query_map(params, self.row_mapper)
-            .unwrap()
+        self.stmt.query_map(params, self.row_mapper).unwrap()
     }
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
-    use rusqlite::params;
 
     #[test]
     fn simple_use() {
@@ -55,7 +54,6 @@ mod test {
         );
     }
 
-    // fn simple_query(conn: &Connection) -> impl Iterable<Item = Result<(String, i64)>> {
     fn simple_query<'conn>(
         conn: &'conn Connection,
     ) -> TypedQuery<'conn, (&str, i64), (String, i64)> {
