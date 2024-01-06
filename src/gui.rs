@@ -1,7 +1,7 @@
 use iced::pure::{row, scrollable, Application, Element};
 use tracing::{Level, span};
 
-use crate::db::SyncedDb;
+use crate::db::{SyncedDb, SqlValue};
 use crate::interlude::*;
 use crate::widgets::{
     gallery::{self, Gallery},
@@ -103,6 +103,26 @@ impl Gui {
         let _enter = prof_span.enter();
 
         let db = self.db.lock().unwrap();
+
+        let query = crate::db::tags_for_file_ids(&db);
+        let file_rowids = self.gallery_selection.rowids.iter().copied().map(SqlValue::from).collect::<Vec<_>>();
+        let limit = file_rowids.len() as u32;
+        let file_rowids = std::rc::Rc::new(file_rowids);
+        self.tags = query.run((file_rowids,))
+            .map(|v| v.unwrap())
+            .map(|(name, hidden, count)| {
+                let selected = if count == 0 {
+                    Some(false)
+                } else if count == limit {
+                    Some(true)
+                } else {
+                    None
+                };
+                tag::Tag { name, hidden, selected }
+            })
+            .collect();
+
+        /*
 // FIXME: use a list of rowids as selection, instead of limit+offset
         let sql = r"
 SELECT tag.name, tag.hidden, count(ttt)
@@ -148,5 +168,6 @@ GROUP BY tag.rowid";
             .unwrap()
             .map(|x| x.unwrap())
             .collect();
+        */
     }
 }
