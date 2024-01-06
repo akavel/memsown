@@ -77,8 +77,10 @@ mod test {
             &[("hello".to_string(), 1i64), ("world".to_string(), 2i64),]
         );
     }
+*/
 
-    fn simple_iter(conn: &Connection) -> impl Iterator<Item = Result<(String, i64)>> {
+    // fn simple_iter(conn: &Connection) -> impl Iterator<Item = Result<(String, i64)>> {
+    fn simple_iter<'conn>(conn: &'conn Connection) -> TypedQuery<'conn, impl Params, impl FnMut(&Row<'_>)->Result<(String,i64)>> {
         TypedQuery::new(
             conn,
             "SELECT foo, bar FROM foobar
@@ -86,14 +88,13 @@ mod test {
                 ORDER BY bar
                 LIMIT ?",
             params!["bleh-dummy", 100],
-            |row| {
+            |row: &Row| {
                 let foo: String = row.get(0)?;
                 let bar: i64 = row.get(1)?;
                 Ok((foo, bar))
             },
         )
     }
-*/
 
     fn new_db() -> rusqlite::Connection {
         let db = rusqlite::Connection::open_in_memory().unwrap();
