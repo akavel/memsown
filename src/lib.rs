@@ -10,18 +10,14 @@ trait Iterable {
     fn iter(&mut self) -> Self::Iter;
 }
 
-// struct Typed<'stmt, F> {
 struct TypedQuery<'conn, P, F> {
     stmt: rusqlite::CachedStatement<'conn>,
     params: Option<P>,
     row_mapper: Option<F>,
-    // rows: rusqlite::MappedRows<'conn, F>,
 }
 
 impl<'conn, T, P, F> TypedQuery<'conn, P, F>
 where
-    // F: FnMut(&Row<'_>) -> Result<T>
-    // F: FnMut(&Row<'stmt>) -> Result<T>
     P: Params,
     F: FnMut(&Row) -> Result<T>,
 {
