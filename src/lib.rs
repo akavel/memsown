@@ -2,16 +2,18 @@
 
 use rusqlite::{params, Connection};
 
-struct Typed {
+struct Typed<Item> {
 }
 
-impl Iterator for Typed {
+impl<Item> Iterator for Typed<Item> {
+    type Item = Item;
 }
 
 
 #[cfg(test)]
 mod test {
     use super::*;
+    use rusqlite::Result;
 
     #[test]
     fn simple_use() {
@@ -25,7 +27,7 @@ mod test {
         ]);
     }
 
-    fn simple_iter(conn: &Connection) -> impl Iterator<Result<(String, i64)>> {
+    fn simple_iter(conn: &Connection) -> impl Iterator<Item = Result<(String, i64)>> {
         Typed::new(
             "SELECT foo, bar FROM foobar
                 WHERE foo != ?
