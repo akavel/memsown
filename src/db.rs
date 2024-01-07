@@ -1,6 +1,7 @@
 use std::path::Path;
 
 use anyhow::Result;
+use const_format::concatcp;
 use rusqlite::{params, Connection, Error::QueryReturnedNoRows};
 
 use crate::interlude::*;
@@ -142,11 +143,7 @@ pub fn visible_files_rowids(db: &Connection, oal: OffsetAndLimit) -> Vec<Rowid> 
         .collect()
 }
 
-pub fn visible_files_in_limit_and_offset<'cnx>(db: &'cnx Connection) ->
-    TypedQuery<'cnx, (i64, i64), (i64, crate::model::FileInfo)>
-{
-    let sql = r"
-SELECT rowid, hash, date, thumbnail
+const FROM_VISIBLE_FILE: &str = r"
 FROM file
 WHERE rowid NOT IN (
   SELECT file_id AS hidden_file
@@ -158,7 +155,16 @@ WHERE rowid NOT IN (
   )
 )
 ORDER BY date
-LIMIT ? OFFSET ?";
+";
+
+pub fn visible_files_in_limit_and_offset<'cnx>(db: &'cnx Connection) ->
+    TypedQuery<'cnx, (i64, i64), (i64, crate::model::FileInfo)>
+{
+    let sql = concatcp!(
+        "SELECT rowid, hash, date, thumbnail",
+        FROM_VISIBLE_FILE,
+        "LIMIT ? OFFSET ?"
+    );
     TypedQuery::new(db, sql, |row| {
         let rowid = row.get_unwrap(0);
         let f = crate::model::FileInfo {
@@ -167,6 +173,25 @@ LIMIT ? OFFSET ?";
             thumb: row.get_unwrap(3),
         };
         Ok((rowid, f))
+    })
+}
+
+pub fn locations_of_file_at_offset<'cnx>(db: &'cnx Connection) ->
+    TypedQuery<'cnx, (i64,), (String, String)>
+{
+    let sql = concatcp!(
+        r"
+SELECT backend_tag, path
+FROM location
+WHERE file_id = (SELECT file.rowid",
+        FROM_VISIBLE_FILE,
+        r"LIMIT 1 OFFSET ?)
+ORDER BY backend_tag ASC, path ASC",
+    );
+    TypedQuery::new(db, sql, |row| {
+        let backend: String = row.get_unwrap(0);
+        let path: String = row.get_unwrap(1);
+        Ok((backend, path))
     })
 }
 

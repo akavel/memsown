@@ -51,6 +51,7 @@ iced_pure = "0.2"
 tracing-chrome = "0.7"
 tracing-subscriber = { version = "0.3", default-features = false, features = ["std", "registry"] }
 tracing = "0.1"
+const_format = "0.2.32"
 
 [target.'cfg(windows)'.dependencies]
 winmtp = "0.2"

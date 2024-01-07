@@ -319,36 +319,10 @@ where
             // println!("hovered_offset: {:?}", hovered_offset);
             let span_locations = span!(Level::TRACE, "draw/locations");
             let guard_locations = span_locations.enter();
-            let locations = db
-                .prepare_cached(
-                    // FIXME: somehow unify internal query with the
-                    // other SELECT query in this file.
-                    r"
-SELECT backend_tag, path
-FROM location
-WHERE file_id = (SELECT file.rowid
-    FROM file
-    WHERE file.rowid NOT IN (
-      SELECT file_id AS hidden_file
-      FROM file_tag
-      WHERE tag_id IN (
-        SELECT ROWID
-        FROM tag
-        WHERE hidden IS TRUE
-      )
-    )
-    ORDER BY date
-    LIMIT 1 OFFSET ?)
-ORDER BY backend_tag ASC, path ASC",
-                )
-                .unwrap()
-                .query_map([hovered_offset], |row| {
-                    let backend: String = row.get_unwrap(0);
-                    let path: String = row.get_unwrap(1);
-                    Ok(backend + ": " + path.as_str())
-                })
-                .unwrap()
-                .map(|x: Result<String, _>| x.unwrap())
+            let mut locations_query = crate::db::locations_of_file_at_offset(&db);
+            let locations = locations_query.run((hovered_offset.into(),))
+                .map(|v| v.unwrap())
+                .map(|(backend, path)| backend + ": " + path.as_str())
                 .join("\n");
             drop(guard_locations);
             let text = {
