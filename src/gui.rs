@@ -1,7 +1,7 @@
 use iced::pure::{row, scrollable, Application, Element};
-use tracing::{Level, span};
+use tracing::{span, Level};
 
-use crate::db::{SyncedDb, SqlValue};
+use crate::db::{SqlValue, SyncedDb};
 use crate::interlude::*;
 use crate::widgets::{
     gallery::{self, Gallery},
@@ -104,11 +104,19 @@ impl Gui {
 
         let db = self.db.lock().unwrap();
 
+        // FIXME: make sure it works when there are 0 images total in DB
         let mut query = crate::db::tags_for_file_ids(&db);
-        let file_rowids = self.gallery_selection.rowids.iter().copied().map(SqlValue::from).collect::<Vec<_>>();
+        let file_rowids = self
+            .gallery_selection
+            .rowids
+            .iter()
+            .copied()
+            .map(SqlValue::from)
+            .collect::<Vec<_>>();
         let limit = file_rowids.len() as u32;
         let file_rowids = std::rc::Rc::new(file_rowids);
-        self.tags = query.run((file_rowids,))
+        self.tags = query
+            .run((file_rowids,))
             .map(|v| v.unwrap())
             .map(|(name, hidden, count)| {
                 let selected = if count == 0 {
@@ -118,56 +126,12 @@ impl Gui {
                 } else {
                     None
                 };
-                tag::Tag { name, hidden, selected }
-            })
-            .collect();
-
-        /*
-// FIXME: use a list of rowids as selection, instead of limit+offset
-        let sql = r"
-SELECT tag.name, tag.hidden, count(ttt)
-FROM tag LEFT JOIN (
-    SELECT tag_id AS ttt
-    FROM file_tag
-    WHERE file_id IN (
-        SELECT file.rowid
-        FROM file
-            LEFT JOIN file_tag ON file.rowid = file_tag.file_id
-            LEFT JOIN tag ON tag.rowid = file_tag.tag_id
-            GROUP BY file.rowid
-            HAVING count(hidden)=0
-        ORDER BY date
-        LIMIT ? OFFSET ?
-    )
-) ON tag.rowid = ttt
-GROUP BY tag.rowid";
-        // FIXME: make it work when there are 0 images total in DB
-        let selection = self.gallery_selection.range();
-        let limit = selection.end() - selection.start() + 1;
-        println!("NEW TAGS for: {} .. {}", selection.start(), limit);
-        self.tags = db
-            .prepare_cached(sql)
-            .unwrap()
-            .query_map([limit, *selection.start()], |row| {
-                let name: String = row.get_unwrap(0);
-                let hidden: bool = row.get_unwrap(1);
-                let count: u32 = row.get_unwrap(2);
-                let selected = if count == 0 {
-                    Some(false)
-                } else if count == limit {
-                    Some(true)
-                } else {
-                    None
-                };
-                Ok(tag::Tag {
+                tag::Tag {
                     name,
                     hidden,
                     selected,
-                })
+                }
             })
-            .unwrap()
-            .map(|x| x.unwrap())
             .collect();
-        */
     }
 }

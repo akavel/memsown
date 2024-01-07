@@ -6,10 +6,8 @@ use rusqlite::{params, Connection, Error::QueryReturnedNoRows};
 
 use crate::interlude::*;
 
-
 mod typed_query;
 pub use typed_query::*;
-
 
 // TODO[LATER]: use Arc<RwLock<T>> instead of Arc<Mutex<T>>
 pub type SyncedDb = Arc<Mutex<Connection>>;
@@ -23,7 +21,7 @@ pub type Rowid = i64;
 #[derive(Copy, Clone, Debug)]
 pub struct OffsetAndLimit {
     pub offset: i64, // FIXME: make sure right type
-    pub limit: i64, // FIXME: make sure right type
+    pub limit: i64,  // FIXME: make sure right type
 }
 
 impl OffsetAndLimit {
@@ -114,9 +112,9 @@ pub fn upsert(
     Ok(())
 }
 
-pub fn tags_for_file_ids<'cnx>(db: &'cnx Connection) ->
-    TypedQuery<'cnx, (std::rc::Rc<Vec<SqlValue>>,), (String, bool, u32)>
-{
+pub fn tags_for_file_ids<'cnx>(
+    db: &'cnx Connection,
+) -> TypedQuery<'cnx, (std::rc::Rc<Vec<SqlValue>>,), (String, bool, u32)> {
     let sql = r"
 SELECT tag.name, tag.hidden, count(ttt)
 FROM tag LEFT JOIN (
@@ -137,7 +135,8 @@ GROUP BY tag.rowid";
 // pub fn visible_files(db: &Connection, oal: OffsetAndLimit) -> impl Iterator<Item = anyhow::Result<Rowid>> + '_ {
 pub fn visible_files_rowids(db: &Connection, oal: OffsetAndLimit) -> Vec<Rowid> {
     let mut query = visible_files_in_limit_and_offset(&db);
-    query.run((oal.limit, oal.offset))
+    query
+        .run((oal.limit, oal.offset))
         .map(|v| v.unwrap())
         .map(|(rowid, _)| rowid)
         .collect()
@@ -157,9 +156,9 @@ WHERE rowid NOT IN (
 ORDER BY date
 ";
 
-pub fn visible_files_in_limit_and_offset<'cnx>(db: &'cnx Connection) ->
-    TypedQuery<'cnx, (i64, i64), (i64, crate::model::FileInfo)>
-{
+pub fn visible_files_in_limit_and_offset<'cnx>(
+    db: &'cnx Connection,
+) -> TypedQuery<'cnx, (i64, i64), (i64, crate::model::FileInfo)> {
     let sql = concatcp!(
         "SELECT rowid, hash, date, thumbnail",
         FROM_VISIBLE_FILE,
@@ -176,9 +175,9 @@ pub fn visible_files_in_limit_and_offset<'cnx>(db: &'cnx Connection) ->
     })
 }
 
-pub fn locations_of_file_at_offset<'cnx>(db: &'cnx Connection) ->
-    TypedQuery<'cnx, (i64,), (String, String)>
-{
+pub fn locations_of_file_at_offset<'cnx>(
+    db: &'cnx Connection,
+) -> TypedQuery<'cnx, (i64,), (String, String)> {
     let sql = concatcp!(
         r"
 SELECT backend_tag, path
@@ -245,11 +244,11 @@ impl Iterator for LooseIterator {
 
 #[cfg(test)]
 mod test {
-    use std::rc::Rc;
     use chrono::NaiveDate;
+    use std::rc::Rc;
 
-    use crate::{db, db::SqlValue};
     use crate::model::FileInfo;
+    use crate::{db, db::SqlValue};
 
     fn all_files(conn: &db::Connection) -> Vec<FileInfo> {
         conn.prepare("SELECT hash, date, thumbnail FROM file")
@@ -272,9 +271,17 @@ mod test {
         db::init(&conn).unwrap();
         let raw_vals = [1i64, 2, 3, 4];
         // Note: a `Rc<Vec<SqlValue>>` must be used as the parameter.
-        let wrapped_vals = Rc::new(raw_vals.iter().copied().map(SqlValue::from).collect::<Vec<_>>());
+        let wrapped_vals = Rc::new(
+            raw_vals
+                .iter()
+                .copied()
+                .map(SqlValue::from)
+                .collect::<Vec<_>>(),
+        );
         let mut stmt = conn.prepare("SELECT value FROM rarray(?);").unwrap();
-        let rows = stmt.query_map([wrapped_vals], |row| row.get::<_, i64>(0)).unwrap();
+        let rows = stmt
+            .query_map([wrapped_vals], |row| row.get::<_, i64>(0))
+            .unwrap();
         let got = rows.into_iter().map(|v| v.unwrap()).collect::<Vec<i64>>();
         assert_eq!(raw_vals, &got[..]);
     }

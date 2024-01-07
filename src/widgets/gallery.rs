@@ -11,7 +11,7 @@ use iced_native::{layout, Clipboard, Layout, Length, Point, Shell, Size};
 use iced_pure::widget::tree::{self, Tree};
 use image::ImageDecoder;
 use itertools::Itertools;
-use tracing::{Level, span};
+use tracing::{span, Level};
 
 use crate::db;
 use crate::interlude::*;
@@ -38,7 +38,9 @@ pub struct Selection {
 
 impl Selection {
     pub fn single(rowid: db::Rowid) -> Self {
-        Self { rowids: vec![rowid] }
+        Self {
+            rowids: vec![rowid],
+        }
     }
 
     //pub fn range(&self) -> RangeInclusive<u32> {
@@ -113,7 +115,9 @@ impl<Message> Gallery<Message> {
     }
 
     fn rowid_from_offset(&self, offset: u32) -> Option<db::Rowid> {
-        self.rowids_from_offsets(offset..=offset).first().map(|v| *v)
+        self.rowids_from_offsets(offset..=offset)
+            .first()
+            .map(|v| *v)
     }
 
     // FIXME: use i64, per Sqlite internals I think, instead of u32
@@ -320,7 +324,8 @@ where
             let span_locations = span!(Level::TRACE, "draw/locations");
             let guard_locations = span_locations.enter();
             let mut locations_query = crate::db::locations_of_file_at_offset(&db);
-            let locations = locations_query.run((hovered_offset.into(),))
+            let locations = locations_query
+                .run((hovered_offset.into(),))
                 .map(|v| v.unwrap())
                 .map(|(backend, path)| backend + ": " + path.as_str())
                 .join("\n");
@@ -370,8 +375,12 @@ where
         let state: &mut InternalState = tree.into();
         match event {
             Event::Mouse(ButtonPressed(Button::Left)) => 'handler: {
-                let Some(off) = self.offset_from_xy(&layout, cursor_position) else { break 'handler; };
-                let Some(rowid) = self.rowid_from_offset(off) else { break 'handler; };
+                let Some(off) = self.offset_from_xy(&layout, cursor_position) else {
+                    break 'handler;
+                };
+                let Some(rowid) = self.rowid_from_offset(off) else {
+                    break 'handler;
+                };
                 self.selection = Selection::single(rowid);
                 // FIXME: what if new images get added on screen while dragging mouse? maybe we
                 // should cancel selection?
@@ -379,10 +388,14 @@ where
                 // println!("PRESS: {:?} off={}", cursor_position, off);
             }
             Event::Mouse(CursorMoved { .. }) => 'handler: {
-                let Some(initial_off) = state.selecting_from_offset else { break 'handler; };
+                let Some(initial_off) = state.selecting_from_offset else {
+                    break 'handler;
+                };
                 // FIXME: what if new images get added on screen while dragging mouse? maybe we
                 // should cancel selection?
-                let Some(off) = self.offset_from_xy(&layout, cursor_position) else { break 'handler; };
+                let Some(off) = self.offset_from_xy(&layout, cursor_position) else {
+                    break 'handler;
+                };
                 let rowids = self.rowids_from_offsets(initial_off..=off);
                 self.selection.rowids = rowids;
                 // println!(" MOVE: {:?}", cursor_position);
