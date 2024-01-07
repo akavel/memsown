@@ -214,7 +214,7 @@ where
         let span_filequery_init = span!(Level::TRACE, "draw/filequery_init");
         let guard_filequery_init = span_filequery_init.enter();
         let mut query = crate::db::visible_files_in_limit_and_offset(&db);
-        let file_iter = query.run((limit as i64, offset as i64)).map(|v| v.unwrap());
+        let file_iter = query.run((limit.into(), offset.into())).map(|v| v.unwrap());
         drop(guard_filequery_init);
 
         // println!("{:?} {:?}", layout.bounds(), &viewport);
