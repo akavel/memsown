@@ -127,10 +127,6 @@ impl<Message> Gallery<Message> {
         let db = self.db.lock().unwrap();
         db::visible_files_rowids(&db, oal)
     }
-
-    // fn offset_selected(&self, offset: u32) -> bool {
-    //     self.selection.range().contains(&offset)
-    // }
 }
 
 impl<Message, Renderer> Widget<Message, Renderer> for Gallery<Message>
@@ -228,7 +224,6 @@ where
         let mut last_date = String::new();
         let mut x = self.spacing;
         let mut y = self.spacing + (offset / columns) as f32 * (self.tile_h + self.spacing);
-        // for (rowid, file) in file_iter.enumerate() {
         for (rowid, file) in file_iter {
             let span_fileiter = span!(Level::TRACE, "draw/fileiter");
             let _guard_fileiter = span_fileiter.enter();
@@ -236,7 +231,6 @@ where
             // Mark tile as selected when appropriate.
             // FIXME: O(n)!!!
             if self.selection.rowids.contains(&rowid) {
-            // if self.offset_selected(offset + i as u32) {
                 renderer.fill_quad(
                     Quad {
                         bounds: Rectangle {

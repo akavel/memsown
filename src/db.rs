@@ -140,34 +140,6 @@ pub fn visible_files_rowids(db: &Connection, oal: OffsetAndLimit) -> Vec<Rowid> 
         .map(|v| v.unwrap())
         .map(|(rowid, _)| rowid)
         .collect()
-/*
-    let mut query = db
-        .prepare_cached(
-            r"
-SELECT rowid
-FROM file
-WHERE rowid NOT IN (
-  SELECT file_id AS hidden_file
-  FROM file_tag
-  WHERE tag_id IN (
-    SELECT ROWID
-    FROM tag
-    WHERE hidden IS TRUE
-  )
-)
-ORDER BY date
-LIMIT ? OFFSET ?",
-        )
-        .unwrap();
-    use anyhow::Context;
-    query.query_map(params![oal.limit, oal.offset], |row| {
-            row.get::<usize, Rowid>(0)
-        })
-        .unwrap()
-        .map(|res| res.with_context(|| "loading rowid for visible file"))
-        .collect::<Result<Vec<_>>>()
-        .unwrap()
-*/
 }
 
 pub fn visible_files_in_limit_and_offset<'cnx>(db: &'cnx Connection) ->
