@@ -194,6 +194,11 @@ ORDER BY backend_tag ASC, path ASC",
     })
 }
 
+pub fn n_files(db: &Connection) -> u32 {
+    db.query_row("SELECT COUNT(*) FROM file", [], |row| row.get(0))
+        .unwrap()
+}
+
 pub fn remove(db: &Connection, marker: &str, relative: &str) -> Result<()> {
     db.execute(
         "DELETE FROM location

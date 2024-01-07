@@ -161,9 +161,7 @@ where
         // println!("MCDBG Gallery::layout(limits: {:?})", limits);
 
         let db = self.db.lock().unwrap();
-        let n_files: u32 = db
-            .query_row("SELECT COUNT(*) FROM file", [], |row| row.get(0))
-            .unwrap();
+        let n_files = crate::db::n_files(&db);
         drop(db);
 
         let width = limits.max().width;
