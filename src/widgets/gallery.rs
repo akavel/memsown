@@ -3,9 +3,10 @@ use std::ops::RangeInclusive;
 use iced::advanced::layout::{self, Layout};
 use iced::advanced::renderer::{self, Quad};
 use iced::advanced::widget::{self, tree, Widget};
-use iced::advanced::{image, text};
+use iced::advanced::{image as iced_image, Clipboard, Shell};
+use iced::advanced::text::{self, Text};
 use iced::{alignment, mouse};
-use iced::{Color, Element, Font, Length, Rectangle, Size};
+use iced::{Color, Element, event, Event, Font, Length, Point, Rectangle, Size};
 /*
 use iced::{Element, Widget};
 use iced_graphics::{Color, Rectangle};
@@ -144,7 +145,7 @@ impl<Message> Gallery<Message> {
 impl<Message, Renderer> Widget<Message, Renderer> for Gallery<Message>
 where
     Renderer: text::Renderer<Font = iced::Font>
-        + image::Renderer<Handle = image::Handle>,
+        + iced_image::Renderer<Handle = iced_image::Handle>,
 {
     fn tag(&self) -> tree::Tag {
         tree::Tag::of::<InternalState>()
@@ -275,7 +276,7 @@ where
             let span_imagethumb = span!(Level::TRACE, "draw/imagethumb");
             let guard_imagethumb = span_imagethumb.enter();
             renderer.draw(
-                image::Handle::from_memory(file.thumb),
+                iced_image::Handle::from_memory(file.thumb),
                 Rectangle {
                     x: x + align_x,
                     y: y + align_y,
@@ -302,13 +303,13 @@ where
                         height: self.spacing - 5.0,
                     },
                     size: 20.0,
-                    line_height: default(),
+                    line_height: Default::default(),
                     color: Color::BLACK,
-                    font: iced_native::Font::Default,
+                    font: Font::DEFAULT,
                     horizontal_alignment: alignment::Horizontal::Left,
                     vertical_alignment: alignment::Vertical::Top,
                     // TODO: or Advanced?
-                    shaping: default(),
+                    shaping: Default::default(),
                 });
             }
 
@@ -326,7 +327,7 @@ where
 
         // Show locations of image file in a hovering tooltip at cursor position.
         // println!("cursor: {:?}", cursor);
-        if let Some(hovered_offset) = cursor.and_then(|p| self.offset_from_xy(&layout, p)) {
+        if let Some(hovered_offset) = cursor.position().and_then(|p| self.offset_from_xy(&layout, p)) {
             let span_draw_tooltip = span!(Level::TRACE, "draw/tooltip");
             let _guard_draw_tooltip = span_draw_tooltip.enter();
 
@@ -343,20 +344,22 @@ where
             let text = {
                 let content = locations.as_str();
                 let size = 12.0;
+                let line_height = Default::default();
                 let font = Font::DEFAULT;
                 let bounds = Size::INFINITY;
-                let measure = renderer.measure(content, size, font, bounds);
+                // TODO: or Advanced?
+                let shaping = Default::default();
+                let measure = renderer.measure(content, size, line_height, font, bounds, shaping);
                 Text {
                     content,
-                    bounds: Rectangle::new(cursor, measure),
+                    bounds: Rectangle::new(cursor.position().unwrap(), measure),
                     size,
-                    line_height: default(),
+                    line_height,
                     color: Color::BLACK,
                     font,
                     horizontal_alignment: alignment::Horizontal::Left,
                     vertical_alignment: alignment::Vertical::Top,
-                    // TODO: or Advanced?
-                    shaping: default(),
+                    shaping,
                 }
             };
             renderer.fill_quad(
@@ -389,7 +392,7 @@ where
         let state: &mut InternalState = state.into();
         match event {
             Event::Mouse(ButtonPressed(Button::Left)) => 'handler: {
-                let Some(off) = cursor.and_then(|p| self.offset_from_xy(&layout, p)) else {
+                let Some(off) = cursor.position().and_then(|p| self.offset_from_xy(&layout, p)) else {
                     break 'handler;
                 };
                 let Some(rowid) = self.rowid_from_offset(off) else {
@@ -407,7 +410,7 @@ where
                 };
                 // FIXME: what if new images get added on screen while dragging mouse? maybe we
                 // should cancel selection?
-                let Some(off) = cursor.and_then(|p| self.offset_from_xy(&layout, p)) else {
+                let Some(off) = cursor.position().and_then(|p| self.offset_from_xy(&layout, p)) else {
                     break 'handler;
                 };
                 let rowids = self.rowids_from_offsets(initial_off..=off);

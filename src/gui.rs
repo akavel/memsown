@@ -1,4 +1,5 @@
-use iced::{row, scrollable, Application, Element};
+use iced::{Application, Element};
+use iced::widget::{scrollable, row};
 use tracing::{span, Level};
 
 use crate::db::{SqlValue, SyncedDb};
@@ -24,6 +25,7 @@ impl Application for Gui {
     type Message = Message;
     type Flags = SyncedDb;
     type Executor = iced::executor::Default;
+    type Theme = iced::theme::Theme;
 
     fn new(db: SyncedDb) -> (Gui, iced::Command<Self::Message>) {
         let gui = Gui {
@@ -90,13 +92,16 @@ impl Application for Gui {
             .with_selection(self.gallery_selection.clone())
             .on_select(Message::GallerySelection);
         let tags = self.tags.view().map(Message::OfTags);
-        row()
-            .push(
-                scrollable(gallery), // // .height(iced::Length::Fill)
-                                     // .width(iced::Length::Fill),
-            )
-            .push(tags)
-            .into()
+        row![
+            scrollable(gallery), // // .height(iced::Length::Fill)
+                                 // .width(iced::Length::Fill),
+            tags,
+        ].into()
+        // row()
+        //     .push(
+        //     )
+        //     .push(tags)
+        //     .into()
     }
 }
 

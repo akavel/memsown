@@ -1,4 +1,5 @@
-use iced::pure::{button, column, row, text, Element};
+use iced::Element;
+use iced::widget::{button, Column, Row, text};
 
 pub struct Panel {
     tags: Vec<tag::Tag>,
@@ -34,7 +35,7 @@ impl Panel {
             .tags
             .iter()
             .enumerate()
-            .fold(column().spacing(20), |col, (i, tag)| {
+            .fold(Column::new().spacing(20), |col, (i, tag)| {
                 col.push(tag.view().map(move |msg| Event::OfNthTag(i, msg)))
             })
             .into();
@@ -106,7 +107,7 @@ pub mod tag {
                 false => res::icon_eye(),
                 true => res::icon_eye_off(),
             };
-            row()
+            Row::new()
                 .spacing(20)
                 .align_items(Alignment::Center)
                 .push(
