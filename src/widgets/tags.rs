@@ -14,6 +14,10 @@ impl Panel {
         Self { tags: tags.into() }
     }
 
+    pub fn get(&self, i: usize) -> &tag::Tag {
+        self.tags.get(i).unwrap()
+    }
+
     pub fn update(&mut self, event: Event) {
         match event {
             Event::OfNthTag(i, tag_event) => {

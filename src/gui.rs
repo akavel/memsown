@@ -60,8 +60,11 @@ impl Application for Gui {
                 match m {
                     tags::Event::OfNthTag(ref n, tags::tag::Event::SetHidden(ref hidden)) => {
                         println!("SET HDN [{}] = {}", n, hidden);
-//TODO: update DB based on rowid stored in self.tags
+                        // TODO: should we do this here or in widgets::tags?
+                        let name = &self.tags.get(*n).name;
+                        crate::db::set_tag_hidden(&self.db, &name, *hidden);
                     }
+//TODO: update DB based on tags::tag::Event::SetSelected - assign tag to selected files
                     _ => {}
                 }
                 self.tags.update(m);

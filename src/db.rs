@@ -209,6 +209,17 @@ pub fn remove(db: &Connection, marker: &str, relative: &str) -> Result<()> {
     Ok(())
 }
 
+pub fn set_tag_hidden(db: &SyncedDb, name: &str, hidden: bool) {
+    // TODO[LATER]: avoid unwrap?
+    let db = db.lock().unwrap();
+    db.execute(
+        "UPDATE tag
+            SET hidden = ?
+            WHERE name = ?",
+        params![hidden, name],
+    ).unwrap();
+}
+
 pub fn hashes(db: SyncedDb, marker: &str) -> impl Iterator<Item = Result<(String, String)>> {
     LooseIterator {
         db,
