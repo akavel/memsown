@@ -1,6 +1,13 @@
 use std::ops::RangeInclusive;
 
-use iced::pure::{Element, Widget};
+use iced::advanced::layout::{self, Layout};
+use iced::advanced::renderer::{self, Quad};
+use iced::advanced::widget::{self, tree, Widget};
+use iced::advanced::{image, text};
+use iced::{alignment, mouse};
+use iced::{Color, Element, Font, Length, Rectangle, Size};
+/*
+use iced::{Element, Widget};
 use iced_graphics::{Color, Rectangle};
 use iced_native::alignment;
 use iced_native::event::{self, Event};
@@ -9,6 +16,7 @@ use iced_native::renderer::{self, Quad};
 use iced_native::text::{self, Text};
 use iced_native::{layout, Clipboard, Layout, Length, Point, Shell, Size};
 use iced_pure::widget::tree::{self, Tree};
+*/
 use image::ImageDecoder;
 use itertools::Itertools;
 use tracing::{span, Level};
@@ -57,14 +65,14 @@ struct InternalState {
     selecting_from_offset: Option<u32>,
 }
 
-impl<'a> From<&'a mut Tree> for &'a mut InternalState {
-    fn from(tree: &'a mut Tree) -> &'a mut InternalState {
+impl<'a> From<&'a mut widget::Tree> for &'a mut InternalState {
+    fn from(tree: &'a mut widget::Tree) -> &'a mut InternalState {
         tree.state.downcast_mut()
     }
 }
 
-impl<'a> From<&'a Tree> for &'a InternalState {
-    fn from(tree: &'a Tree) -> &'a InternalState {
+impl<'a> From<&'a widget::Tree> for &'a InternalState {
+    fn from(tree: &'a widget::Tree) -> &'a InternalState {
         tree.state.downcast_ref()
     }
 }
@@ -135,8 +143,8 @@ impl<Message> Gallery<Message> {
 
 impl<Message, Renderer> Widget<Message, Renderer> for Gallery<Message>
 where
-    Renderer: text::Renderer<Font = iced_native::Font>
-        + iced_image::Renderer<Handle = iced_image::Handle>,
+    Renderer: text::Renderer<Font = iced::Font>
+        + image::Renderer<Handle = image::Handle>,
 {
     fn tag(&self) -> tree::Tag {
         tree::Tag::of::<InternalState>()
@@ -176,12 +184,13 @@ where
 
     fn draw(
         &self,
-        _tree: &Tree,
+        _state: &widget::Tree,
         renderer: &mut Renderer,
+        _theme: &Renderer::Theme,
         _style: &renderer::Style,
         layout: Layout<'_>,
         // cursor_position: Point,
-        cursor: Point,
+        cursor: mouse::Cursor,
         viewport: &Rectangle,
     ) {
         let prof_span = span!(Level::TRACE, "gallery::draw");
@@ -241,7 +250,7 @@ where
                             width: self.tile_w + self.spacing,
                             height: self.tile_h + self.spacing,
                         },
-                        border_radius: 0.,
+                        border_radius: 0.0.into(),
                         border_width: 0.,
                         border_color: Color::WHITE,
                     },
@@ -266,7 +275,7 @@ where
             let span_imagethumb = span!(Level::TRACE, "draw/imagethumb");
             let guard_imagethumb = span_imagethumb.enter();
             renderer.draw(
-                iced_image::Handle::from_memory(file.thumb),
+                image::Handle::from_memory(file.thumb),
                 Rectangle {
                     x: x + align_x,
                     y: y + align_y,
@@ -292,11 +301,14 @@ where
                         width: self.tile_w,
                         height: self.spacing - 5.0,
                     },
-                    color: Color::BLACK,
                     size: 20.0,
+                    line_height: default(),
+                    color: Color::BLACK,
                     font: iced_native::Font::Default,
                     horizontal_alignment: alignment::Horizontal::Left,
                     vertical_alignment: alignment::Vertical::Top,
+                    // TODO: or Advanced?
+                    shaping: default(),
                 });
             }
 
@@ -314,7 +326,7 @@ where
 
         // Show locations of image file in a hovering tooltip at cursor position.
         // println!("cursor: {:?}", cursor);
-        if let Some(hovered_offset) = self.offset_from_xy(&layout, cursor) {
+        if let Some(hovered_offset) = cursor.and_then(|p| self.offset_from_xy(&layout, p)) {
             let span_draw_tooltip = span!(Level::TRACE, "draw/tooltip");
             let _guard_draw_tooltip = span_draw_tooltip.enter();
 
@@ -330,25 +342,28 @@ where
             drop(guard_locations);
             let text = {
                 let content = locations.as_str();
-                let size = 12u16;
-                let font = iced_graphics::Font::Default;
+                let size = 12.0;
+                let font = Font::DEFAULT;
                 let bounds = Size::INFINITY;
-                let (w, h) = renderer.measure(content, size, font, bounds);
+                let measure = renderer.measure(content, size, font, bounds);
                 Text {
                     content,
-                    bounds: Rectangle::new(cursor, Size::new(w, h)),
+                    bounds: Rectangle::new(cursor, measure),
+                    size,
+                    line_height: default(),
                     color: Color::BLACK,
-                    size: size.into(),
                     font,
                     horizontal_alignment: alignment::Horizontal::Left,
                     vertical_alignment: alignment::Vertical::Top,
+                    // TODO: or Advanced?
+                    shaping: default(),
                 }
             };
             renderer.fill_quad(
                 Quad {
                     // bounds: tooltip_bounds,
                     bounds: text.bounds,
-                    border_radius: 0.,
+                    border_radius: 0.0.into(),
                     border_width: 0.,
                     border_color: Color::WHITE,
                 },
@@ -361,19 +376,20 @@ where
 
     fn on_event(
         &mut self,
-        tree: &mut Tree,
+        state: &mut widget::Tree,
         event: Event,
         layout: Layout<'_>,
-        cursor_position: Point,
+        cursor: mouse::Cursor,
         _renderer: &Renderer,
         _clipboard: &mut dyn Clipboard,
         shell: &mut Shell<'_, Message>,
+        _viewport: &Rectangle<f32>,
     ) -> event::Status {
         use iced::mouse::{Button, Event::*};
-        let state: &mut InternalState = tree.into();
+        let state: &mut InternalState = state.into();
         match event {
             Event::Mouse(ButtonPressed(Button::Left)) => 'handler: {
-                let Some(off) = self.offset_from_xy(&layout, cursor_position) else {
+                let Some(off) = cursor.and_then(|p| self.offset_from_xy(&layout, p)) else {
                     break 'handler;
                 };
                 let Some(rowid) = self.rowid_from_offset(off) else {
@@ -391,7 +407,7 @@ where
                 };
                 // FIXME: what if new images get added on screen while dragging mouse? maybe we
                 // should cancel selection?
-                let Some(off) = self.offset_from_xy(&layout, cursor_position) else {
+                let Some(off) = cursor.and_then(|p| self.offset_from_xy(&layout, p)) else {
                     break 'handler;
                 };
                 let rowids = self.rowids_from_offsets(initial_off..=off);

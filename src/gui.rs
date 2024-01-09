@@ -1,4 +1,4 @@
-use iced::pure::{row, scrollable, Application, Element};
+use iced::{row, scrollable, Application, Element};
 use tracing::{span, Level};
 
 use crate::db::{SqlValue, SyncedDb};

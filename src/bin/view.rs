@@ -1,4 +1,5 @@
-use iced::pure::Application;
+use iced::Application;
+// TODO: use iced builtin feature for tracing_chrome
 use tracing_chrome::ChromeLayerBuilder as ChromiumTracingBuilder;
 use tracing_subscriber::prelude::*;
 
