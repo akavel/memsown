@@ -94,8 +94,8 @@ impl Application for Gui {
         let tags = self.tags.view().map(Message::OfTags);
         Row::new()
             .push(
-                scrollable(gallery), // // .height(iced::Length::Fill)
-                                     // .width(iced::Length::Fill),
+                // scrollable(gallery), // .height(iced::Length::Fill)
+                scrollable(gallery).width(iced::Length::Fill),
             )
             .push(tags)
             .into()
