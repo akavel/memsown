@@ -362,17 +362,19 @@ where
                     shaping,
                 }
             };
-            renderer.fill_quad(
-                Quad {
-                    // bounds: tooltip_bounds,
-                    bounds: text.bounds,
-                    border_radius: 0.0.into(),
-                    border_width: 0.,
-                    border_color: Color::WHITE,
-                },
-                Color::from_rgb(0.9, 0.9, 0.7),
-            );
-            renderer.fill_text(text);
+            renderer.with_layer(Rectangle::with_size(Size::INFINITY), |renderer| {
+                renderer.fill_quad(
+                    Quad {
+                        // bounds: tooltip_bounds,
+                        bounds: text.bounds,
+                        border_radius: 0.0.into(),
+                        border_width: 0.,
+                        border_color: Color::WHITE,
+                    },
+                    Color::from_rgb(0.9, 0.9, 0.7),
+                );
+                renderer.fill_text(text);
+            });
         }
         // TODO[LATER]: show text message if no thumbnails in DB
     }
