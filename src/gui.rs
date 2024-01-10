@@ -1,5 +1,5 @@
 use iced::{Application, Element};
-use iced::widget::{scrollable, Row};
+use iced::widget::{scrollable, row};
 use tracing::{span, Level};
 
 use crate::db::{SqlValue, SyncedDb};
@@ -92,25 +92,11 @@ impl Application for Gui {
             .with_selection(self.gallery_selection.clone())
             .on_select(Message::GallerySelection);
         let tags = self.tags.view().map(Message::OfTags);
-        Row::new()
-            .push(
-                // scrollable(gallery), // .height(iced::Length::Fill)
-                scrollable(gallery).width(iced::Length::Fill),
-            )
-            .push(tags)
-            .into()
-        /*
         row![
-            scrollable(gallery), // // .height(iced::Length::Fill)
-                                 // .width(iced::Length::Fill),
+            // scrollable(gallery), // .height(iced::Length::Fill)
+            scrollable(gallery).width(iced::Length::Fill),
             tags,
         ].into()
-        */
-        // row()
-        //     .push(
-        //     )
-        //     .push(tags)
-        //     .into()
     }
 }
 
