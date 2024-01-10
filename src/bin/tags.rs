@@ -1,4 +1,4 @@
-use iced::pure::{Element, Sandbox};
+use iced::{Element, Sandbox};
 
 use backer::widgets::tags::{self, tag};
 

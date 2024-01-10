@@ -1,5 +1,5 @@
 use iced::{alignment, Font, Length};
-use iced::widget::Text;
+use iced::widget::{text, Text};
 
 // FIXME: font loading
 /*
@@ -18,6 +18,7 @@ fn icon(unicode: &'static str) -> Text<'static> {
         .width(Length::Fixed(20.0))
         .horizontal_alignment(alignment::Horizontal::Center)
         .size(20)
+        .shaping(text::Shaping::Advanced)
 }
 
 pub fn icon_eye() -> Text<'static> {
