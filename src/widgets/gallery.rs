@@ -7,17 +7,6 @@ use iced::advanced::{image as iced_image, Clipboard, Shell};
 use iced::advanced::text::{self, Text};
 use iced::{alignment, mouse};
 use iced::{Color, Element, event, Event, Font, Length, Point, Rectangle, Size};
-/*
-use iced::{Element, Widget};
-use iced_graphics::{Color, Rectangle};
-use iced_native::alignment;
-use iced_native::event::{self, Event};
-use iced_native::image as iced_image;
-use iced_native::renderer::{self, Quad};
-use iced_native::text::{self, Text};
-use iced_native::{layout, Clipboard, Layout, Length, Point, Shell, Size};
-use iced_pure::widget::tree::{self, Tree};
-*/
 use image::ImageDecoder;
 use itertools::Itertools;
 use tracing::{span, Level};
